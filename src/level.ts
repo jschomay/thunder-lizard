@@ -1,9 +1,12 @@
-import RecursiveShadowcasting from "../lib/rotjs/fov/recursive-shadowcasting";
+import Simplex from "../lib/rotjs/noise/simplex";
+import * as ROT from "../lib/rotjs";
 import Entity from "./entity";
 import XY from "./xy";
 import Game from "./game";
 import Player from "./entities/player";
 import TextBuffer from "./textbuffer"
+import { Color } from "../lib/rotjs";
+
 
 const DEBUG = 0
 function debug(level: MainLevel) {
@@ -150,6 +153,34 @@ export default class MainLevel {
       }
     }
     // TODO
+    function terrain_mapping(alpha) {
+      if (alpha < 50) {
+        return "blue"
+      } else if (alpha < 90) {
+        return "brown"
+      } else if (alpha < 200) {
+        return "green"
+      } else if (alpha < 240) {
+        return "darkbrown"
+      } else {
+        return "white"
+      }
+    }
+    const noise = new Simplex()
+    const { x, y } = this.getSize()
+    for (var j = 0; j < y; j++) {
+      for (var i = 0; i < x; i++) {
+        var n = noise.get(i / 20, j / 20);
+        let alpha = ((n + 1) / 2) * 255
+        let alpha_color = ROT.Color.toRGB([alpha, alpha, alpha])
+        console.log(n, alpha, ROT.Color.toRGB([alpha, alpha, alpha]))
+        let terrain_color = terrain_mapping(alpha)
+        this.game.display.draw(i, j, ".", terrain_color)
+        // var r = ~~(val > 0 ? val : 0);
+        // var g = ~~(val < 0 ? -val : 0);
+        // this.game.display.draw(i, j, "", "", "rgb(" + r + "," + g + ",0)");
+      }
+    }
     this._map["60,20"] = new Entity(this, new XY(60, 20))
 
 
