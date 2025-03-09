@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      background: black;
+      color: gray;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 90vh;
+      font-size: 24px;
+      font-family: monospace;
+    }
+
+    #virtual-joystick {
+      position: absolute;
+      z-index: 999;
+      left: 20px;
+      top: 40%;
+      width: 90px;
+      height: 90px;
+      display: flex;
+      flex-wrap: wrap;
+      border-radius: 50%;
+      overflow: hidden;
+      transform: rotate(45deg);
+      display: none;
+    }
+
+    #virtual-joystick div {
+      opacity: 0.5;
+      border: 1px solid gray;
+      width: 50%;
+      height: 50%;
+      flex-shrink: 0;
+      flex-grow: 0;
+      background: white;
+    }
+
+    #virtual-joystick div:active {
+      opacity: 0.8;
+    }
+  </style>
+  <title>Thunder Lizard: Eat or be eaten</title>
+</head>
+
+<body class="bg-black min-h-screen flex items-center justify-center" style="background: black;">
+  <p>LOADING...</p>
+  <script type="module" src="/src/main.ts"></script>
+  <div id="virtual-joystick">
+    <div id="up"></div>
+    <div id="right"></div>
+    <div id="left"></div>
+    <div id="down"></div>
+  </div>
+</body>
+
+</html>
