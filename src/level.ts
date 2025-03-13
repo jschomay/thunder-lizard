@@ -151,32 +151,45 @@ export default class MainLevel {
       }
     }
     // TODO
-    function terrain_mapping(alpha) {
-      if (alpha < 50) {
-        return "blue"
-      } else if (alpha < 90) {
-        return "brown"
-      } else if (alpha < 200) {
-        return "green"
-      } else if (alpha < 240) {
-        return "darkbrown"
-      } else {
-        return "white"
-      }
-    }
+    let mapping = [
+      "#000",
+      "#222",
+      "#444",
+      "#666",
+      "#888",
+      "#aaa",
+      "#ccc",
+      "#eee",
+    ]
+
+    // more black, steeper
+    let easeIn = x => 1 - Math.cos((x * Math.PI) / 2);
+    // more white, steeper
+    let easeOut = x => Math.sin((x * Math.PI) / 2);
+    // blaanced, steeper
+    let easeInOut = x => -(Math.cos(Math.PI * x) - 1) / 2;
+
     const noise = new Simplex()
     const { x, y } = this.getSize()
+    let scale = 30
     for (var j = 0; j < y; j++) {
       for (var i = 0; i < x; i++) {
-        var n = noise.get(i / 20, j / 20);
-        let alpha = ((n + 1) / 2) * 255
+        var n = noise.get(i / scale, j / scale);
+        let val = ((n + 1) / 2)
+        // val = easeIn(val)
+        // val = easeOut(val)
+        // val = easeInOut(val)
+
+        let alpha = val * 255
         let alpha_color = ROT.Color.toRGB([alpha, alpha, alpha])
-        console.log(n, alpha, ROT.Color.toRGB([alpha, alpha, alpha]))
-        let terrain_color = terrain_mapping(alpha)
-        this.game.display.draw(i, j, ".", terrain_color)
+
+        let terrain_color = mapping[Math.floor(val * mapping.length)]
+        this.game.display.draw(i, j, ".", alpha_color, terrain_color)
+
+        // let val = n * 255
         // var r = ~~(val > 0 ? val : 0);
-        // var g = ~~(val < 0 ? -val : 0);
         // this.game.display.draw(i, j, "", "", "rgb(" + r + "," + g + ",0)");
+        // var g = ~~(val < 0 ? -val : 0);
       }
     }
     this._map["60,20"] = new Entity(this, new XY(60, 20))
