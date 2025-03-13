@@ -47,9 +47,7 @@ export default class MainLevel {
     this._map = {};
     this._size = new XY(120, 40);
 
-    this.player = new Player(game);
-    // get's positioneed according to map in generateMap
-    this.player.setPosition(new XY(0, 0), this);
+    this.player = new Player(this, new XY(0, 0))
 
     this._generateMap();
 

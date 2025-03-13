@@ -1,14 +1,14 @@
 import * as ROT from "../../lib/rotjs";
 import Entity from "../entity";
 import XY from "../xy";
-import Game from "../game";
+import Level from "../level";
 import { SpeedActor } from "../../lib/rotjs";
 
 export default class Player extends Entity implements SpeedActor {
   private _keys: { [key: number]: number };
   private ready: boolean;
-  constructor(game: Game) {
-    super(game, { ch: "@", fg: "yellow" });
+  constructor(level: Level, xy: XY) {
+    super(level, xy, { ch: "@", fg: "yellow" });
 
     this.ready = true;
 
@@ -35,8 +35,8 @@ export default class Player extends Entity implements SpeedActor {
   }
 
   act() {
-    this.getLevel()!.textBuffer.flush();
-    this.game.engine.lock();
+    this.getLevel().textBuffer.flush();
+    this.getLevel().game.engine.lock();
     this.ready = true;
   }
 
@@ -47,7 +47,7 @@ export default class Player extends Entity implements SpeedActor {
     let keyHandled = this._handleKey(e.keyCode);
     if (keyHandled) {
       this.ready = false;
-      this.game.engine.unlock();
+      this.getLevel().game.engine.unlock();
     }
   }
 
