@@ -152,47 +152,59 @@ export default class MainLevel {
     }
     // TODO
     let mapping = [
-      "#000",
-      "#222",
-      "#444",
-      "#666",
-      "#888",
-      "#aaa",
-      "#ccc",
-      "#eee",
+      "#2a2",
+      "#754",
+      "#11e",
+      "#33f",
+      // the above don't get used (generation is overall 50% bright to minimize water lelvels)
+      "#33f",
+      "#754",
+      "#2a2",
+      "#172",
+      "#050",
     ]
 
-    // more black, steeper
     let easeIn = x => 1 - Math.cos((x * Math.PI) / 2);
-    // more white, steeper
     let easeOut = x => Math.sin((x * Math.PI) / 2);
-    // blaanced, steeper
     let easeInOut = x => -(Math.cos(Math.PI * x) - 1) / 2;
 
     const noise = new Simplex()
+
+    // noise with l octaves
+    let get_noise = (x, y, scale, l = 3, height = 1) => {
+      if (l === 0) return 0
+      var n = noise.get(x / scale, y / scale) * height
+      let decay = 0.5
+      return n + get_noise(x, y, scale * decay, l - 1, height * decay)
+    }
+
     const { x, y } = this.getSize()
-    let scale = 30
+    // good scale for gen and viewport is 90 - 150 (at map size 120x40)
+    let scale = 120
+
     for (var j = 0; j < y; j++) {
       for (var i = 0; i < x; i++) {
-        var n = noise.get(i / scale, j / scale);
+        let n = get_noise(i, j, scale, 5)
+        n = Math.abs(n) // makes nicer sharper valleys and peaks
         let val = ((n + 1) / 2)
         // val = easeIn(val)
         // val = easeOut(val)
         // val = easeInOut(val)
 
-        let alpha = val * 255
-        let alpha_color = ROT.Color.toRGB([alpha, alpha, alpha])
+        let terrain_color = mapping[Math.floor(val * mapping.length)] || "#11e" // default lake for "peaks"
 
-        let terrain_color = mapping[Math.floor(val * mapping.length)]
-        this.game.display.draw(i, j, ".", alpha_color, terrain_color)
+        // let alpha = Math.floor(Math.pow(val, 3) * 255)
+        // let alpha_color = ROT.Color.toRGB([alpha, alpha, alpha])
+        // let a = Color.fromString(alpha_color)
+        let b = Color.fromString(terrain_color)
+        // let color = Color.toHex(Color.multiply(a, b))
+        let brightened = Color.toHex(Color.add(Color.fromString("#111"), b))
+        let char = ROT.RNG.getItem("%$&SPCJQ6983")
+        this.game.display.draw(i, j, char, brightened, "black")
 
-        // let val = n * 255
-        // var r = ~~(val > 0 ? val : 0);
-        // this.game.display.draw(i, j, "", "", "rgb(" + r + "," + g + ",0)");
-        // var g = ~~(val < 0 ? -val : 0);
       }
     }
-    this._map["60,20"] = new Entity(this, new XY(60, 20))
+    this._map["60,20"] = new Entity(this, new XY(60, 20), { ch: "@", fg: "yellow" })
 
 
     for (let key in this._map) {
