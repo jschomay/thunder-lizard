@@ -45,7 +45,7 @@ export default class MainLevel {
   constructor(game: Game) {
     this.game = game;
     this._map = {};
-    this._size = new XY(120, 40);
+    this._size = new XY(400, 400);
 
     this.player = new Player(this, new XY(0, 0))
 
@@ -144,24 +144,14 @@ export default class MainLevel {
   }
 
   _generateMap() {
-    // clear out title
-    for (let row = 0; row < this._size.y; row++) {
-      for (let col = 0; col < this._size.x; col++) {
-        this.game.display.draw(col, row, " ")
-      }
-    }
-    // TODO
     let mapping = [
-      "#2a2",
-      "#754",
-      "#11e",
-      "#33f",
-      // the above don't get used (generation is overall 50% bright to minimize water lelvels)
-      "#33f",
-      "#754",
-      "#2a2",
-      "#172",
-      "#050",
+      "red", // lava
+      "#754", // dirt
+      "#2a2", // grass
+      "#33f", // water
+      "#2a2", // grass
+      "#172", // trees
+      "#050", // jungle
     ]
 
     let easeIn = x => 1 - Math.cos((x * Math.PI) / 2);
@@ -179,26 +169,22 @@ export default class MainLevel {
     }
 
     const { x, y } = this.getSize()
-    // good scale for gen and viewport is 90 - 150 (at map size 120x40)
-    let scale = 120
+    const scale = 120
+    const center = new XY(x / 2, y / 2)
 
     for (var j = 0; j < y; j++) {
       for (var i = 0; i < x; i++) {
+        let dist = center.dist(new XY(i, j))
+        let waterLevel = dist / (x / 2)
         let n = get_noise(i, j, scale, 5)
+
+        n = ((n + 0.7) / 2) // "lowers" water level of rivers (compresses alpha range to 0.5-1, cutting off lowe end of terrain map)
+        // n = easeInOut(n)
         n = Math.abs(n) // makes nicer sharper valleys and peaks
-        let val = ((n + 1) / 2)
-        // val = easeIn(val)
-        // val = easeOut(val)
-        // val = easeInOut(val)
+        n = n + waterLevel // makes "island" shape
 
-        let terrain_color = mapping[Math.floor(val * mapping.length)] || "#11e" // default lake for "peaks"
-
-        // let alpha = Math.floor(Math.pow(val, 3) * 255)
-        // let alpha_color = ROT.Color.toRGB([alpha, alpha, alpha])
-        // let a = Color.fromString(alpha_color)
-        let b = Color.fromString(terrain_color)
-        // let color = Color.toHex(Color.multiply(a, b))
-        let brightened = Color.toHex(Color.add(Color.fromString("#111"), b))
+        let terrain_color = mapping[Math.floor(n * mapping.length)] || "#11e" // outside of range is "ocean"
+        let brightened = Color.toHex(Color.add(Color.fromString("#111"), Color.fromString(terrain_color)))
         let char = ROT.RNG.getItem("%$&SPCJQ6983")
         this.game.display.draw(i, j, char, brightened, "black")
 
