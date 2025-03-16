@@ -8,7 +8,7 @@ export default class Player extends Entity implements SpeedActor {
   private _keys: { [key: number]: number };
   private ready: boolean;
   constructor(level: Level, xy: XY) {
-    super(level, xy, { ch: "@", fg: "yellow" });
+    super(level, xy, { ch: "Ԇ", fg: "yellow" });
 
     this.ready = true;
 

@@ -1,11 +1,11 @@
 import Simplex from "../lib/rotjs/noise/simplex";
-import * as ROT from "../lib/rotjs";
-import Entity from "./entity";
+import Entity, { EntityConstructor } from "./entity";
 import XY from "./xy";
 import Game from "./game";
 import Player from "./entities/player";
 import TextBuffer from "./textbuffer"
 import { Color } from "../lib/rotjs";
+import * as Terrain from "./entities/terrain";
 
 
 const DEBUG = 1
@@ -67,7 +67,7 @@ export default class MainLevel {
     this.game = game;
     this._map_size = new XY(400, 400);
     this._map = Array.from(Array(this._map_size.y), () => Array(this._map_size.x));
-    this._size = new XY(55, 40);
+    this._size = new XY(65, 50);
     this._offset = new XY(200, 200);
 
     this.player = new Player(this, new XY(0, 0))
@@ -126,7 +126,9 @@ export default class MainLevel {
     let mapXY = viewportXY.plus(this._offset)
     let entity = this.getEntityAt(mapXY);
     let visual = entity ? entity.getVisual() : { ch: "x", fg: "black" }
-    this.game.display.draw(viewportXY.x, viewportXY.y, visual.ch, visual.fg);
+    let color = visual.fg
+    let brightened = Color.toHex(Color.add(Color.fromString("#111"), Color.fromString(visual.fg)))
+    this.game.display.draw(viewportXY.x, viewportXY.y, visual.ch, brightened);
   }
 
   drawMap(): void {
@@ -181,14 +183,23 @@ export default class MainLevel {
   }
 
   _generateMap() {
+    // let mapping = [
+    //   "red", // lava
+    //   "#754", // dirt
+    //   "#2a2", // grass
+    //   "#33f", // water
+    //   "#2a2", // grass
+    //   "#172", // trees
+    //   "#050", // jungle
+    // ]
     let mapping = [
-      "red", // lava
-      "#754", // dirt
-      "#2a2", // grass
-      "#33f", // water
-      "#2a2", // grass
-      "#172", // trees
-      "#050", // jungle
+      Terrain.Lava,
+      Terrain.Dirt,
+      Terrain.Grass,
+      Terrain.Water,
+      Terrain.Grass,
+      Terrain.Shrub,
+      Terrain.Jungle
     ]
 
     let easeIn = x => 1 - Math.cos((x * Math.PI) / 2);
@@ -220,10 +231,8 @@ export default class MainLevel {
         n = Math.abs(n) // makes nicer sharper valleys and peaks
         n = n + waterLevel // makes "island" shape
 
-        let terrain_color = mapping[Math.floor(n * mapping.length)] || "#11e" // outside of range is "ocean"
-        let brightened = Color.toHex(Color.add(Color.fromString("#111"), Color.fromString(terrain_color)))
-        let char = ROT.RNG.getItem("%$&SPCJQ6983")
-        this._map[i][j] = new Entity(this, new XY(i, j), { ch: char, fg: brightened })
+        let entity_class: EntityConstructor = mapping[Math.floor(n * mapping.length)] || Terrain.Ocean
+        this._map[i][j] = new entity_class(this, new XY(j, i))
       }
     }
 

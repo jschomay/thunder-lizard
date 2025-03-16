@@ -2,6 +2,7 @@ import XY from './xy'
 import Level from './level'
 
 export type Visual = { ch: string, fg: string };
+export type EntityConstructor = new (level: Level, xy: XY) => Entity
 
 export default class Entity {
   private _visual: Visual;
