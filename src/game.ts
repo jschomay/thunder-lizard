@@ -17,7 +17,7 @@ export default class Game {
   constructor() {
     this.scheduler = new ROT.Scheduler.Speed();
     this.engine = new ROT.Engine(this.scheduler);
-    const scalar = 120
+    const scalar = 100
     let fontSize = window.innerWidth / scalar;
     window.addEventListener("resize", () => {
       fontSize = window.innerWidth / scalar;
@@ -60,7 +60,7 @@ export default class Game {
   switchLevel(level: MainLevel | StartScreen | EndScreen): void {
     this.level = level;
     let size = level.getSize();
-    this.display.setOptions({ width: size.x, height: size.y });
+    this.display.setOptions({ width: size.x, height: size.y, forceSquareRatio: false });
 
     if (level instanceof MainLevel) {
 

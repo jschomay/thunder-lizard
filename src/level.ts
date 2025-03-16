@@ -8,7 +8,7 @@ import TextBuffer from "./textbuffer"
 import { Color } from "../lib/rotjs";
 
 
-const DEBUG = 0
+const DEBUG = 1
 function debug(level: MainLevel) {
   // level.player.setPosition(new XY(99, 30))
 
@@ -26,17 +26,38 @@ function debug(level: MainLevel) {
   }
   )
 
-  window.addEventListener("keyup", (e) => {
-    if (e.key === "8") {
-      // ...
+  let originalSize = level.getSize()
+  let originalOffset = level._offset
+  let zoomedOut = false
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "0") {
+      if (zoomedOut) {
+        level._size = originalSize
+        level._offset = originalOffset
+      } else {
+        level._size = level._map_size
+        level._offset = new XY(0, 0)
+      }
+      zoomedOut = !zoomedOut
+      let size = level.getSize();
+      level.game.display.setOptions({ width: size.x, height: size.y });
+      level.drawMap()
+    } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      if (e.key === "ArrowUp") level._offset.y--
+      if (e.key === "ArrowDown") level._offset.y++
+      if (e.key === "ArrowLeft") level._offset.x--
+      if (e.key === "ArrowRight") level._offset.x++
+      level.drawMap()
     }
   })
 }
 
 
 export default class MainLevel {
+  private _map_size: XY;
+  private _map: Entity[][]
   private _size: XY;
-  private _map: Record<string, Entity>;
+  private _offset: XY;
   private _fovCells: XY[] = []
   textBuffer: TextBuffer;
   game: Game
@@ -44,12 +65,15 @@ export default class MainLevel {
 
   constructor(game: Game) {
     this.game = game;
-    this._map = {};
-    this._size = new XY(400, 400);
+    this._map_size = new XY(400, 400);
+    this._map = Array.from(Array(this._map_size.y), () => Array(this._map_size.x));
+    this._size = new XY(55, 40);
+    this._offset = new XY(200, 200);
 
     this.player = new Player(this, new XY(0, 0))
 
     this._generateMap();
+    this.drawMap()
 
     this.textBuffer = new TextBuffer(this.game);
 
@@ -98,22 +122,35 @@ export default class MainLevel {
   }
 
 
-  draw(xy: XY): void {
-    let entity = this.getEntityAt(xy);
-    let visual = entity!.getVisual();
-    this.game.display.draw(xy.x, xy.y, visual.ch, visual.fg);
+  draw(viewportXY: XY): void {
+    let mapXY = viewportXY.plus(this._offset)
+    let entity = this.getEntityAt(mapXY);
+    let visual = entity ? entity.getVisual() : { ch: "x", fg: "black" }
+    this.game.display.draw(viewportXY.x, viewportXY.y, visual.ch, visual.fg);
+  }
+
+  drawMap(): void {
+    // draws curent viewport
+    const xy = new XY()
+    for (let j = 0; j < this._size.y; j++) {
+      for (let i = 0; i < this._size.x; i++) {
+        xy.x = i
+        xy.y = j
+        this.draw(xy)
+      }
+    }
   }
 
   getSize() { return this._size; }
 
   setEntity(entity: Entity, xy: XY) {
-    entity.setPosition(xy, this); // propagate position data to the entity itself
-    this._map[xy.toString()] = entity;
+    entity.setPosition(xy); // propagate position data to the entity itself
+    this._map[xy.x][xy.y] = entity;
     this.draw(xy);
   }
 
   getEntityAt(xy: XY): Entity | null {
-    return this._map[xy.toString()]
+    return this._map[xy.x][xy.y]
   }
 
   updateFOV() {
@@ -168,7 +205,7 @@ export default class MainLevel {
       return n + get_noise(x, y, scale * decay, l - 1, height * decay)
     }
 
-    const { x, y } = this.getSize()
+    const { x, y } = this._map_size
     const scale = 120
     const center = new XY(x / 2, y / 2)
 
@@ -186,17 +223,12 @@ export default class MainLevel {
         let terrain_color = mapping[Math.floor(n * mapping.length)] || "#11e" // outside of range is "ocean"
         let brightened = Color.toHex(Color.add(Color.fromString("#111"), Color.fromString(terrain_color)))
         let char = ROT.RNG.getItem("%$&SPCJQ6983")
-        this.game.display.draw(i, j, char, brightened, "black")
-
+        this._map[i][j] = new Entity(this, new XY(i, j), { ch: char, fg: brightened })
       }
     }
-    this._map["60,20"] = new Entity(this, new XY(60, 20), { ch: "@", fg: "yellow" })
 
 
-    for (let key in this._map) {
-      let entity = this._map[key]
-      if (entity) this.draw(entity.getXY()!)
-    }
-
+    // TODO generate mobs/items
+    // this._map[60][20] = new Entity(this, new XY(60, 20), { ch: "@", fg: "yellow" })
   }
 }
