@@ -1,13 +1,8 @@
 import * as ROT from "../lib/rotjs"
-import Scheduler from "../lib/rotjs/scheduler/speed"
-import EndScreen from "./end-screen";
 import MainLevel from "./level"
 import StartScreen from "./start-screen"
-import XY from "./xy";
 
 export default class Game {
-  scheduler: Scheduler;
-  engine: ROT.Engine;
   level: MainLevel | StartScreen;
   display: ROT.Display;
   HANDLED_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "w", "a", "s", "d", "Enter", "Escape", " "];
@@ -15,8 +10,6 @@ export default class Game {
   _container: HTMLElement
 
   constructor() {
-    this.scheduler = new ROT.Scheduler.Speed();
-    this.engine = new ROT.Engine(this.scheduler);
     const scalar = 100
     let fontSize = window.innerWidth / scalar;
     window.addEventListener("resize", () => {
@@ -33,7 +26,6 @@ export default class Game {
     // let level = new StartScreen(this);
     this.level = level;
     this.switchLevel(level);
-    this.engine.start();
 
     window.addEventListener("keydown", this.onKeyDown.bind(this));
     if (this.detectMobile()) {
@@ -44,7 +36,6 @@ export default class Game {
   detectMobile() {
     return (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
   }
-
 
   // for mobile
   public onClick(e: Event) {
@@ -57,7 +48,7 @@ export default class Game {
   }
 
 
-  switchLevel(level: MainLevel | StartScreen | EndScreen): void {
+  switchLevel(level: MainLevel | StartScreen): void {
     this.level = level;
     let size = level.getSize();
     this.display.setOptions({ width: size.x, height: size.y, forceSquareRatio: false });

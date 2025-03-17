@@ -1,4 +1,4 @@
-import Entity from "../entity";
+import Entity, { Visual } from "../entity";
 import XY from "../xy";
 import Level from "../level";
 import { RNG } from "../../lib/rotjs";
@@ -11,15 +11,32 @@ export class Lava extends Entity {
 
 export class Water extends Entity {
   constructor(level: Level, xy: XY) {
-    let ch = RNG.getItem("≋≈")
-    super(level, xy, { ch, fg: "#44f" });
+    super(level, xy);
+    this.setVisual(this.getRandomVisual())
   }
+  getRandomVisual(): Visual {
+    let ch: string = RNG.getItem("≋≈".split(""))!
+    let fg: string = RNG.getItem(["#44f", "#66e"])!
+    return { ch, fg }
+  }
+  act() {
+    this.setVisual(this.getRandomVisual())
+  }
+
 }
 
 export class Ocean extends Entity {
   constructor(level: Level, xy: XY) {
-    let ch = RNG.getItem("༄༅")
-    super(level, xy, { ch, fg: "#11d" });
+    super(level, xy);
+    this.setVisual(this.getRandomVisual())
+  }
+  getRandomVisual(): Visual {
+    let ch: string = RNG.getItem("༄༅".split(""))!
+    let fg: string = RNG.getItem(["#11d", "#11a"])!
+    return { ch, fg }
+  }
+  act() {
+    this.setVisual(this.getRandomVisual())
   }
 }
 

@@ -1,3 +1,4 @@
+import Scheduler from "../lib/rotjs/scheduler/scheduler";
 import Simplex from "../lib/rotjs/noise/simplex";
 import Entity, { EntityConstructor } from "./entity";
 import XY from "./xy";
@@ -5,6 +6,7 @@ import Game from "./game";
 import Player from "./entities/player";
 import TextBuffer from "./textbuffer"
 import { Color } from "../lib/rotjs";
+import * as ROT from "../lib/rotjs";
 import * as Terrain from "./entities/terrain";
 
 
@@ -59,9 +61,11 @@ export default class MainLevel {
   private _size: XY;
   private _offset: XY;
   private _fovCells: XY[] = []
+  scheduler: Scheduler;
   textBuffer: TextBuffer;
   game: Game
   player: Player
+  stop: boolean = false
 
   constructor(game: Game) {
     this.game = game;
@@ -69,6 +73,7 @@ export default class MainLevel {
     this._map = Array.from(Array(this._map_size.y), () => Array(this._map_size.x));
     this._size = new XY(65, 50);
     this._offset = new XY(200, 200);
+    this.scheduler = new ROT.Scheduler.Speed();
 
     this.player = new Player(this, new XY(0, 0))
 
@@ -85,14 +90,45 @@ export default class MainLevel {
     });
     this.textBuffer.clear();
 
-    game.scheduler.clear();
-    game.scheduler.add(this.player, true);
+    // this.scheduler.add(this.player, true);
 
 
     if (DEBUG) {
       debug(this)
     }
+
+    this.waterLoop()
+    // this.mainLoop()
   }
+
+  waterLoop() {
+    let start = new Date().getTime();
+    const tickTimeMs = 400
+    const loop = () => {
+      for (let i = 0; i < this._size.x; i += 5) {
+        for (let j = 0; j < this._size.y; j += 5) {
+          let e = this._map[i + this._offset.x][j + this._offset.y]
+          if (e.act) e.act(start)
+        }
+      }
+      this.drawMap()
+      if (!this.stop) setTimeout(loop, tickTimeMs);
+      start += tickTimeMs
+    }
+    loop()
+  }
+
+  async mainLoop() {
+    const tickTimeMs = 100
+    const loop = async () => {
+      let actor = this.scheduler.next();
+      await actor.act();
+      this.drawMap()
+      if (!this.stop) setTimeout(loop, tickTimeMs);
+    }
+    await loop()
+  }
+
 
   // for mobile
   public onClick(e: MouseEvent) {
@@ -232,7 +268,8 @@ export default class MainLevel {
         n = n + waterLevel // makes "island" shape
 
         let entity_class: EntityConstructor = mapping[Math.floor(n * mapping.length)] || Terrain.Ocean
-        this._map[i][j] = new entity_class(this, new XY(j, i))
+        let e = new entity_class(this, new XY(i, j))
+        this._map[i][j] = e
       }
     }
 

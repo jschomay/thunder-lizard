@@ -36,7 +36,6 @@ export default class Player extends Entity implements SpeedActor {
 
   act() {
     this.getLevel().textBuffer.flush();
-    this.getLevel().game.engine.lock();
     this.ready = true;
   }
 
@@ -47,11 +46,12 @@ export default class Player extends Entity implements SpeedActor {
     let keyHandled = this._handleKey(e.keyCode);
     if (keyHandled) {
       this.ready = false;
-      this.getLevel().game.engine.unlock();
     }
   }
 
   _handleKey(keyCode: number): boolean {
+    //TODO
+    return
     if (!(keyCode in this._keys)) { return false; }
 
 
