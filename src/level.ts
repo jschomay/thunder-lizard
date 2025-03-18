@@ -58,6 +58,7 @@ function debug(level: MainLevel) {
 export default class MainLevel {
   private _map_size: XY;
   private _map: Entity[][]
+  private _lava: Set<Terrain.Lava> = new Set()
   private _size: XY;
   private _offset: XY;
   private _fovCells: XY[] = []
@@ -98,6 +99,7 @@ export default class MainLevel {
     }
 
     this.waterLoop()
+    this.lavaloop()
     // this.mainLoop()
   }
 
@@ -109,6 +111,51 @@ export default class MainLevel {
         for (let j = 0; j < this._size.y; j += 5) {
           let e = this._map[i + this._offset.x][j + this._offset.y]
           if (e.act) e.act(start)
+        }
+      }
+      this.drawMap()
+      if (!this.stop) setTimeout(loop, tickTimeMs);
+      start += tickTimeMs
+    }
+    loop()
+  }
+
+  lavaloop() {
+    let start = new Date().getTime();
+    const tickTimeMs = 5000
+    const loop = () => {
+      // cellular automata lava "spread"
+      for (let lava of [...this._lava]) {
+        // TODO extract map class
+        // TODO move to lava.act
+        // TODO use getEntity (which ultimately needs to return terrain, items and mobs - items and mobs get destroyed)
+        let north = this._map[lava.getXY().x][lava.getXY().y - 1]
+        let south = this._map[lava.getXY().x][lava.getXY().y + 1]
+        let west = this._map[lava.getXY().x - 1][lava.getXY().y]
+        let east = this._map[lava.getXY().x + 1][lava.getXY().y]
+        let neighbors = new Set([north, south, west, east])
+        for (let n of neighbors) {
+          if (n instanceof Terrain.Lava || n instanceof Terrain.Ocean) {
+            neighbors.delete(n)
+            continue
+          }
+          let p = 80
+          if (n instanceof Terrain.Grass) p = 10
+          if (n instanceof Terrain.Shrub) p = 30
+          if (n instanceof Terrain.Jungle) p = 70
+          if (n instanceof Terrain.Water) p = 90
+          if (ROT.RNG.getPercentage() > p) {
+            let l = new Terrain.Lava(this, n.getXY())
+            this._map[n.getXY().x][n.getXY().y] = l
+            this._lava.add(l)
+          }
+        }
+        // lava "burns out" when surrounded by lava
+        if (neighbors.size === 0) {
+          // TODO make lava.die()
+          this._lava.delete(lava)
+          let ch = ROT.RNG.getItem("¸ʾ˚˓")
+          lava.setVisual({ ch })
         }
       }
       this.drawMap()
@@ -270,6 +317,8 @@ export default class MainLevel {
         let entity_class: EntityConstructor = mapping[Math.floor(n * mapping.length)] || Terrain.Ocean
         let e = new entity_class(this, new XY(i, j))
         this._map[i][j] = e
+        // lava is indexed in order to iterate
+        if (e instanceof Terrain.Lava) this._lava.add(e)
       }
     }
 

@@ -5,7 +5,8 @@ import { RNG } from "../../lib/rotjs";
 
 export class Lava extends Entity {
   constructor(level: Level, xy: XY) {
-    super(level, xy, { ch: "༉", fg: "#e11" });
+    let fg: string = RNG.getItem(["#e11", "#e43"])!
+    super(level, xy, { ch: "༉", fg });
   }
 }
 
