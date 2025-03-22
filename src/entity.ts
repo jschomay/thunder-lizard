@@ -3,6 +3,10 @@ import Level from './level'
 
 export type Visual = { ch: string, fg: string };
 export type EntityConstructor = new (level: Level, xy: XY) => Entity
+export interface Actor {
+  act(): void
+}
+
 
 export default class Entity {
   private _visual: Visual;

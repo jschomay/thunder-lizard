@@ -1,4 +1,4 @@
-import Entity, { Visual } from "../entity";
+import Entity, { Visual, Actor } from "../entity";
 import XY from "../xy";
 import Level from "../level";
 import { RNG } from "../../lib/rotjs";
@@ -10,7 +10,7 @@ export class Lava extends Entity {
   }
 }
 
-export class Water extends Entity {
+export class Water extends Entity implements Actor {
   constructor(level: Level, xy: XY) {
     super(level, xy);
     this.setVisual(this.getRandomVisual())
@@ -26,7 +26,7 @@ export class Water extends Entity {
 
 }
 
-export class Ocean extends Entity {
+export class Ocean extends Entity implements Actor {
   constructor(level: Level, xy: XY) {
     super(level, xy);
     this.setVisual(this.getRandomVisual())
