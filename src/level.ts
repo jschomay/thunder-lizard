@@ -24,7 +24,8 @@ export default class MainLevel {
   textBuffer: TextBuffer;
   game: Game
   player: Player
-  stop: boolean = false
+  paused: null | ((value: any) => void) = null // pause check and call to resume
+  whenRunning: Promise<any> = Promise.resolve()
 
   constructor(game: Game) {
     this.game = game;
@@ -68,7 +69,7 @@ export default class MainLevel {
         if ('act' in e) (e as Actor).act()
       }
       this.drawMap()
-      if (!this.stop) setTimeout(loop, tickTimeMs);
+      setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
     loop()
   }
@@ -114,7 +115,7 @@ export default class MainLevel {
         }
       }
       this.drawMap()
-      if (!this.stop) setTimeout(loop, tickTimeMs);
+      setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
     loop()
   }
@@ -125,7 +126,7 @@ export default class MainLevel {
       let actor = this.scheduler.next();
       await actor.act();
       this.drawMap()
-      if (!this.stop) setTimeout(loop, tickTimeMs);
+      setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
     await loop()
   }
@@ -147,16 +148,58 @@ export default class MainLevel {
 
 
   onKeyDown(e: KeyboardEvent) {
+    if (this.paused && e.key.toLowerCase() !== "p") { return }
+
     this.textBuffer.clear()
 
-    if (this.textBuffer.showing) {
-      if (e.key === "Enter") {
-        this.textBuffer.clearDisplayBox()
-      }
-    } else {
-      this.player.onKeyDown(e)
+
+    if (this.textBuffer.showing && e.key === "Enter") {
+      this.textBuffer.clearDisplayBox()
+
+    } else if (e.key.toLowerCase() === "p") {
+      this.handlePause()
+
+    } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      this.move(e.key)
     }
   }
+
+  move(dir: string) {
+    // TODO validate move
+    if (dir === "ArrowUp") this._viewportOffset.y--
+    if (dir === "ArrowDown") this._viewportOffset.y++
+    if (dir === "ArrowLeft") this._viewportOffset.x--
+    if (dir === "ArrowRight") this._viewportOffset.x++
+    this.drawMap()
+  }
+
+  handlePause() {
+    let originalSize = this.getSize()
+    let originalOffset = this._viewportOffset
+
+    if (this.paused) {
+      this.paused(true)
+      this.paused = null
+      document.querySelector("#status")?.classList.add("hidden")
+
+    } else {
+      this.whenRunning = new Promise((resolve, reject) => {
+        this.paused = resolve
+      })
+      document.querySelector("#status")!.innerHTML = "PAUSED"
+      document.querySelector("#status")!.classList.remove("hidden")
+      this._viewportSize = this.map.size
+      this._viewportOffset = new XY(0, 0)
+    }
+
+    let size = this.getSize();
+    this.game.display.setOptions({ width: size.x, height: size.y });
+    this.drawMap()
+
+    this._viewportSize = originalSize
+    this._viewportOffset = originalOffset
+  }
+
 
 
   draw(viewportXY: XY): void {

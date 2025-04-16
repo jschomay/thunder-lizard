@@ -6,7 +6,7 @@ import Game from './game'
 window.addEventListener("load", loadNoMusic);
 function loadNoMusic(e) {
   if (e.type !== "load") return
-  document.querySelector("p")?.remove()
+  document.querySelector("#status")?.classList.add("hidden", "absolute", "top-32", "z-10")
   new Game()
   return
 }
