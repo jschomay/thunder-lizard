@@ -262,16 +262,16 @@ export default class MainLevel {
   }
 
   _generateMap() {
-    // let mapping = [
-    //   "red", // lava
-    //   "#754", // dirt
-    //   "#2a2", // grass
-    //   "#33f", // water
-    //   "#2a2", // grass
-    //   "#172", // trees
-    //   "#050", // jungle
-    // ]
-    let mapping = [
+    let colorMapping = [
+      "red", // lava
+      "#754", // dirt
+      "#2a2", // grass
+      "#33f", // water
+      "#2a2", // grass
+      "#172", // trees
+      "#050", // jungle
+    ]
+    let terrainMapping = [
       Terrain.Lava,
       Terrain.Dirt,
       Terrain.Grass,
@@ -299,19 +299,44 @@ export default class MainLevel {
     const y = MAP_SIZE
     const scale = 120
     const center = new XY(x / 2, y / 2)
+    const center2 = center.plus(new XY(
+      ROT.RNG.getUniformInt(0.5, 1) * ROT.RNG.getItem([1, -1])! * x / 5,
+      ROT.RNG.getUniformInt(0.5, 1) * ROT.RNG.getItem([1, -1])! * y / 5)
+    )
+
 
     for (var j = 0; j < y; j++) {
       for (var i = 0; i < x; i++) {
         let dist = center.dist(new XY(i, j))
-        let waterLevel = dist / (x / 2)
-        let n = get_noise(i, j, scale, 5)
+        let dist2 = center2.dist(new XY(i, j))
+        let height = 1 - (dist / (x / 2)) // 1-0 where 1 is max
+        let height2 = 1 - (dist2 / (x / 5))
+        let n = get_noise(i, j, scale, 5) // -1.5 - 1.5 about
 
-        n = ((n + 0.7) / 2) // "lowers" water level of rivers (compresses alpha range to 0.5-1, cutting off lowe end of terrain map)
-        // n = easeInOut(n)
-        n = Math.abs(n) // makes nicer sharper valleys and peaks
-        n = n + waterLevel // makes "island" shape
+        n = n + 1.5 // higher number = rounder single island
 
-        let entity_class: EntityConstructor = mapping[Math.floor(n * mapping.length)] || Terrain.Ocean
+        height *= 0.5 // smaller peaks, less lava
+        height2 *= 0.3
+        let h = Math.max(0, height) + Math.max(0, height2)
+        // alpha
+        let a = Math.min(h * 255, 255) * n
+
+        // set viewport to map size to draw whole map
+        // draw alpha
+        // a = Math.round(a / 30) * 30 // posterize
+        // let color = Color.toRGB([a, a, a])
+        // this.game.display.draw(i, j, "x", color)
+
+        // draw terrain colors
+        // map alpha to terrain space more or less (note terrain is opposite order of alpha)
+        a = 9 - Math.round(a / 30) // base determins overall size
+        // let color = colorMapping[a] || "blue"
+        // if (a < 0) color = "red"
+        // this.game.display.draw(i, j, "x", color)
+
+        let entity_class: EntityConstructor = terrainMapping[a] || Terrain.Ocean
+        if (a < 0) entity_class = entity_class = Terrain.Lava
+
         let e = new entity_class(this, new XY(i, j))
         let needsIndex = entity_class === Terrain.Lava
         this.map.set(e, needsIndex)
