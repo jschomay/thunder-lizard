@@ -10,6 +10,7 @@ import * as ROT from "../lib/rotjs";
 import * as Terrain from "./entities/terrain";
 import WorldMap from "./map";
 import { DEBUG, debug } from "./debug";
+import Dino from "./entities/dino";
 
 
 
@@ -37,6 +38,7 @@ export default class MainLevel {
     this.player = new Player(this, new XY(0, 0))
 
     this._generateMap();
+    this._generateMobs();
     this.drawMap()
 
     this.textBuffer = new TextBuffer(this.game);
@@ -58,7 +60,7 @@ export default class MainLevel {
 
     this.waterLoop()
     this.lavaloop()
-    // this.mainLoop()
+    this.mainLoop()
   }
 
   waterLoop() {
@@ -66,7 +68,7 @@ export default class MainLevel {
     const loop = () => {
       for (let e of this.map.get(this._getViewport())) {
         if (ROT.RNG.getUniform() < 0.9) continue
-        if ('act' in e) (e as Actor).act()
+        if ('flow' in e) e.flow() // TODO use components or something nicer than this
       }
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
@@ -121,14 +123,15 @@ export default class MainLevel {
   }
 
   async mainLoop() {
-    const tickTimeMs = 100
-    const loop = async () => {
-      let actor = this.scheduler.next();
-      await actor.act();
+    const tickTimeMs = 300
+    const loop = () => {
+      for (let e of this.map.get(this._getViewport())) {
+        if ('act' in e) (e as Actor).act()
+      }
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
-    await loop()
+    loop()
   }
 
 
@@ -183,9 +186,7 @@ export default class MainLevel {
       document.querySelector("#status")?.classList.add("hidden")
 
     } else {
-      this.whenRunning = new Promise((resolve, reject) => {
-        this.paused = resolve
-      })
+      this.whenRunning = new Promise((resolve, reject) => this.paused = resolve)
       document.querySelector("#status")!.innerHTML = "PAUSED"
       document.querySelector("#status")!.classList.remove("hidden")
       this._viewportSize = this.map.size
@@ -202,24 +203,25 @@ export default class MainLevel {
 
 
 
-  draw(viewportXY: XY): void {
-    let mapXY = viewportXY.plus(this._viewportOffset)
-    let entity = this.map.at(mapXY);
-    let visual = entity ? entity.getVisual() : { ch: "x", fg: "black" }
+  /**
+   * Draws a single map coordinate
+   */
+  draw(xyOrEntity: XY | Entity): void {
+    let entity = xyOrEntity instanceof Entity ? xyOrEntity : this.map.at(xyOrEntity);
+    if (!entity) throw new Error("No entity to draw for " + xyOrEntity.toString())
+    let { x, y } = entity.getXY().minus(this._viewportOffset)
+    let visual = entity.getVisual()
     let color = visual.fg
-    let brightened = Color.toHex(Color.add(Color.fromString("#111"), Color.fromString(visual.fg)))
-    this.game.display.draw(viewportXY.x, viewportXY.y, visual.ch, brightened);
+    let brightened = Color.toHex(Color.add(Color.fromString("#222"), Color.fromString(color)))
+    this.game.display.draw(x, y, visual.ch, brightened);
   }
 
+  /**
+   * Draws the current viewport
+   */
   drawMap(): void {
-    // draws curent viewport
-    const xy = new XY()
-    for (let j = 0; j < this._viewportSize.y; j++) {
-      for (let i = 0; i < this._viewportSize.x; i++) {
-        xy.x = i
-        xy.y = j
-        this.draw(xy)
-      }
+    for (let e of this.map.get(this._getViewport())) {
+      this.draw(e)
     }
   }
 
@@ -338,13 +340,34 @@ export default class MainLevel {
         if (a < 0) entity_class = entity_class = Terrain.Lava
 
         let e = new entity_class(this, new XY(i, j))
-        let needsIndex = entity_class === Terrain.Lava
+        let needsIndex = terrainMapping.includes(entity_class)
         this.map.set(e, needsIndex)
       }
     }
+    if (this.map.getTagged(Terrain.Lava).size === 0) {
+      let lavaSeed = ROT.RNG.getItem([...this.map.getTagged(Terrain.Dirt)])?.getXY()
+      if (lavaSeed) this.map.set(new Terrain.Lava(this, lavaSeed), true)
+    }
 
 
-    // TODO generate mobs/items
-    // this._map[60][20] = new Entity(this, new XY(60, 20), { ch: "@", fg: "yellow" })
+  }
+
+  _generateMobs() {
+    let terrainsWithMobs = [
+      Terrain.Dirt,
+      Terrain.Grass,
+      Terrain.Water,
+      Terrain.Shrub,
+      Terrain.Jungle
+    ]
+
+    let population = 60
+    let validCoords: XY[] = terrainsWithMobs.flatMap(
+      (terrainClass: EntityConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
+
+    ROT.RNG.shuffle(validCoords).slice(0, population).forEach(xy => {
+      // TODO generate dino uniqueness
+      this.map.set(new Dino(this, xy), true)
+    })
   }
 }

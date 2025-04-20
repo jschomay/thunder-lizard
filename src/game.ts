@@ -22,8 +22,8 @@ export default class Game {
     document.body.appendChild(this._container);
 
     // TODO only for debugging
-    let level = new MainLevel(this);
-    // let level = new StartScreen(this);
+    // let level = new MainLevel(this);
+    let level = new StartScreen(this);
     this.level = level;
     this.switchLevel(level);
 

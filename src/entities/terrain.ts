@@ -20,7 +20,7 @@ export class Water extends Entity implements Actor {
     let fg: string = RNG.getItem(["#44f", "#66e"])!
     return { ch, fg }
   }
-  act() {
+  flow() {
     this.setVisual(this.getRandomVisual())
   }
 
@@ -36,7 +36,7 @@ export class Ocean extends Entity implements Actor {
     let fg: string = RNG.getItem(["#11d", "#11a"])!
     return { ch, fg }
   }
-  act() {
+  flow() {
     this.setVisual(this.getRandomVisual())
   }
 }

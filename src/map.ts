@@ -4,8 +4,8 @@ import * as Terrain from "./entities/terrain";
 
 export type Bounds = { x: number, y: number, w: number, h: number }
 
-type EntityConstructor<T extends Entity> = new (...args: any[]) => T;
-type IndexedMap = Map<EntityConstructor<Entity>, Set<Entity>>
+type ConstructorOf<T extends Entity> = new (...args: any[]) => T;
+type IndexedMap = Map<ConstructorOf<Entity>, Set<Entity>>
 
 export default class WorldMap {
   size: XY;
@@ -31,7 +31,7 @@ export default class WorldMap {
     this._map[x][y] = entity;
 
     if (index) {
-      let key = entity.constructor as EntityConstructor<Entity>
+      let key = entity.constructor as ConstructorOf<Entity>
       if (!this._indexed.has(key)) this._indexed.set(key, new Set())
       this._indexed.get(key)!.add(entity)
     }
@@ -47,7 +47,7 @@ export default class WorldMap {
   }
 
   removeFromIndex(entity: Entity): void {
-    let key = entity.constructor as EntityConstructor<Entity>
+    let key = entity.constructor as ConstructorOf<Entity>
     this._indexed.get(key)?.delete(entity)
   }
 
@@ -69,7 +69,7 @@ export default class WorldMap {
 
   nearest(xy: XY): Entity[] { return [] }
 
-  getTagged<T extends Entity>(constructor: EntityConstructor<T>): Set<T> {
+  getTagged<T extends Entity>(constructor: ConstructorOf<T>): Set<T> {
     return (this._indexed.get(constructor) || new Set()) as Set<T>;
   }
 
