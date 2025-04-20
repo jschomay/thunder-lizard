@@ -1,10 +1,18 @@
 import MainLevel from "./level"
 import XY from "./xy"
+import { FPS } from 'yy-fps'
 
 export const DEBUG = 1
 export function debug(level: MainLevel) {
   // level.player.setPosition(new XY(99, 30))
 
+
+  const fps = new FPS({meter: true, stylesFPS: {'fontSize': '10px'}, meterLineHeight: 1})
+  function updateFPS() {
+    fps.frame()
+    requestAnimationFrame(updateFPS)
+  }
+  updateFPS()
 
   // inspect helpers
   window._at = (x, y) => level.map.at(new XY(x, y))
