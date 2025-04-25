@@ -3,19 +3,23 @@ import WorldMap from '../src/map'
 import XY from '../src/xy'
 import * as Terrain from '../src/entities/terrain'
 import MainLevel from '../src/level'
+import Entity from '../src/entity'
 
 class MockLevel {
 }
 
+
+class NotTerrain extends Entity { }
 const level = new MockLevel() as MainLevel
 
 test('basic', () => {
   const m = new WorldMap(20, 20)
 
-  // only takes Entities
-  expect(() => m.set(new XY(0, 0))).toThrow('getXY is not a function')
+  // only takes Terrain
+  expect(() => m.set(new XY(0, 0))).toThrow('Only instances of Terrain allowed in World map, got XY')
+  expect(() => m.set(new NotTerrain(level, new XY(0, 0)))).toThrow('Only instances of Terrain allowed in World map, got NotTerrain')
   // out of range
-  expect(() => m.set(new Terrain.Water(level, new XY(30, 0)))).toThrow('Entity position (30, 0) is out of bounds')
+  expect(() => m.set(new Terrain.Water(level, new XY(30, 0)))).toThrow('Terrain position (30, 0) is out of bounds')
   expect(m.get()).toHaveLength(0)
 
   const water = new Terrain.Water(level, new XY(0, 0))
@@ -37,7 +41,7 @@ test('basic', () => {
   expect(m.at(new XY(1, 0))).toBe(lava)
   expect(m.at(1, 0)).toBe(lava)
   expect(m.at(new XY(9, 9))).toBe(null)
-  expect(() => m.at(new XY(30, 0))).toThrow('Entity position (30, 0) is out of bounds')
+  expect(() => m.at(new XY(30, 0))).toThrow('Terrain position (30, 0) is out of bounds')
 
   // indexes
   expect(m.getTagged(Terrain.Lava).size).toBe(1)

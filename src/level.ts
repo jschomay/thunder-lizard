@@ -1,6 +1,7 @@
 import Scheduler from "../lib/rotjs/scheduler/scheduler";
 import Simplex from "../lib/rotjs/noise/simplex";
 import Entity, { EntityConstructor, Actor } from "./entity";
+import { TerrainConstructor } from "./entities/terrain";
 import XY from "./xy";
 import Game from "./game";
 import Player from "./entities/player";
@@ -11,10 +12,10 @@ import * as Terrain from "./entities/terrain";
 import WorldMap from "./map";
 import { DEBUG, debug } from "./debug";
 import Dino from "./entities/dino";
+import { Rectangle } from "@timohausmann/quadtree-ts";
+import { MAP_SIZE } from "./constants";
+import * as Animated from "./systems/animated";
 
-
-
-const MAP_SIZE = 400
 
 export default class MainLevel {
   private _viewportSize: XY;
@@ -65,12 +66,18 @@ export default class MainLevel {
 
   waterLoop() {
     const tickTimeMs = 300
+    const visible = new Rectangle({
+      x: this._viewportOffset.x,
+      y: this._viewportOffset.y,
+      width: this._viewportSize.x,
+      height: this._viewportSize.y
+    })
     const loop = () => {
-      for (let e of this.map.get(this._getViewport())) {
-        if (ROT.RNG.getUniform() < 0.9) continue
-        if ('flow' in e) e.flow() // TODO use components or something nicer than this
-      }
-      this.drawMap()
+      visible.x = this._viewportOffset.x
+      visible.y = this._viewportOffset.y
+      visible.width = this._viewportSize.x
+      visible.height = this._viewportSize.y
+      Animated.run(visible)
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
     loop()
@@ -116,7 +123,6 @@ export default class MainLevel {
           lava.setVisual({ ch })
         }
       }
-      this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
     loop()
@@ -336,14 +342,23 @@ export default class MainLevel {
         // if (a < 0) color = "red"
         // this.game.display.draw(i, j, "x", color)
 
-        let entity_class: EntityConstructor = terrainMapping[a] || Terrain.Ocean
-        if (a < 0) entity_class = entity_class = Terrain.Lava
+        let terrain_class: TerrainConstructor = terrainMapping[a] || Terrain.Ocean
+        if (a < 0) terrain_class = terrain_class = Terrain.Lava
 
-        let e = new entity_class(this, new XY(i, j))
-        let needsIndex = terrainMapping.includes(entity_class)
+        let e = new terrain_class(this, new XY(i, j))
+        // index everything for now
+        let needsIndex = terrainMapping.includes(terrain_class)
         this.map.set(e, needsIndex)
+
+        // add "systems"
+        // TODO use better component registering
+        if ("flow" in e) {
+          Animated.add(e)
+        }
       }
     }
+
+    // sometimes the generator doesn't make any lava, so make sure
     if (this.map.getTagged(Terrain.Lava).size === 0) {
       let lavaSeed = ROT.RNG.getItem([...this.map.getTagged(Terrain.Dirt)])?.getXY()
       if (lavaSeed) this.map.set(new Terrain.Lava(this, lavaSeed), true)
@@ -363,11 +378,12 @@ export default class MainLevel {
 
     let population = 60
     let validCoords: XY[] = terrainsWithMobs.flatMap(
-      (terrainClass: EntityConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
+      (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
     ROT.RNG.shuffle(validCoords).slice(0, population).forEach(xy => {
       // TODO generate dino uniqueness
-      this.map.set(new Dino(this, xy), true)
+      // TODO use dino map
+      // this.map.set(new Dino(this, xy), true)
     })
   }
 }
