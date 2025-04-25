@@ -5,8 +5,7 @@ import * as Terrain from '../src/entities/terrain'
 import MainLevel from '../src/level'
 import Entity from '../src/entity'
 
-class MockLevel {
-}
+class MockLevel {}
 
 
 class NotTerrain extends Entity { }

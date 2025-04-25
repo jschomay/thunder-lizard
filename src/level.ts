@@ -1,7 +1,7 @@
 import Scheduler from "../lib/rotjs/scheduler/scheduler";
 import Simplex from "../lib/rotjs/noise/simplex";
 import Entity, { EntityConstructor, Actor } from "./entity";
-import { TerrainConstructor } from "./entities/terrain";
+import { TerrainConstructor, Terrain as TerrainClass } from "./entities/terrain";
 import XY from "./xy";
 import Game from "./game";
 import Player from "./entities/player";
@@ -12,6 +12,7 @@ import * as Terrain from "./entities/terrain";
 import WorldMap from "./map";
 import { DEBUG, debug } from "./debug";
 import Dino from "./entities/dino";
+import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
 import { MAP_SIZE } from "./constants";
 import * as Animated from "./systems/animated";
@@ -22,6 +23,7 @@ export default class MainLevel {
   private _viewportOffset: XY;
   private _fovCells: XY[] = []
   map: WorldMap
+  dinos: Dinos
   scheduler: Scheduler;
   textBuffer: TextBuffer;
   game: Game
@@ -32,6 +34,7 @@ export default class MainLevel {
   constructor(game: Game) {
     this.game = game;
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
+    this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
     this._viewportSize = new XY(65, 50);
     this._viewportOffset = new XY(200, 200);
     this.scheduler = new ROT.Scheduler.Speed();
@@ -96,7 +99,7 @@ export default class MainLevel {
         let south = this.map.at(x, y + 1)
         let west = this.map.at(x - 1, y)
         let east = this.map.at(x + 1, y)
-        let neighbors = new Set([north, south, west, east].filter(e => e)) as Set<Entity>
+        let neighbors = new Set([north, south, west, east].filter(e => e)) as Set<TerrainClass>
         for (let n of neighbors) {
           if (n instanceof Terrain.Lava || n instanceof Terrain.Ocean) {
             neighbors.delete(n)
@@ -112,8 +115,17 @@ export default class MainLevel {
             // overwrite the existing terrain
             this.map.set(l, true)
             this.map.removeFromIndex(n) // currently no necessary, but just in case
+            // TODO should probably call remove or die on n (animation system will keep animating it)
+            // or bulk remove from quadtree
+
+            // need to kil off dinos too
+            let dino = this.dinos.at(l.getXY())
+            if (dino) {
+              this.dinos.remove(dino)
+            }
           }
         }
+
         // lava "burns out" when surrounded by lava or ocean
         if (neighbors.size === 0) {
           // TODO use lava.die()
@@ -131,8 +143,8 @@ export default class MainLevel {
   async mainLoop() {
     const tickTimeMs = 300
     const loop = () => {
-      for (let e of this.map.get(this._getViewport())) {
-        if ('act' in e) (e as Actor).act()
+      for (let e of this.dinos.withIn(this._getViewport())) {
+        e.act()
       }
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
@@ -226,7 +238,8 @@ export default class MainLevel {
    * Draws the current viewport
    */
   drawMap(): void {
-    for (let e of this.map.get(this._getViewport())) {
+    for (let e of (this.map.get(this._getViewport()) as Entity[])) {
+      e = this.dinos.at(e.getXY()) || e
       this.draw(e)
     }
   }
@@ -382,8 +395,7 @@ export default class MainLevel {
 
     ROT.RNG.shuffle(validCoords).slice(0, population).forEach(xy => {
       // TODO generate dino uniqueness
-      // TODO use dino map
-      // this.map.set(new Dino(this, xy), true)
+      this.dinos.add(new Dino(this, xy))
     })
   }
 }

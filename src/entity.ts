@@ -1,5 +1,6 @@
 import XY from './xy'
 import Level from './level'
+import { Circle, NodeGeometry, Indexable } from "@timohausmann/quadtree-ts";
 
 export type Visual = { ch: string, fg: string };
 export type EntityConstructor = new (level: Level, xy: XY) => Entity
@@ -8,7 +9,7 @@ export interface Actor {
 }
 
 
-export default class Entity {
+export default class Entity implements Indexable {
   private _visual: Visual;
   private _xy: XY;
   private _level: Level;
@@ -18,6 +19,15 @@ export default class Entity {
     this._xy = xy
     this._visual = visual
   }
+
+  qtIndex(node: NodeGeometry) {
+    return Circle.prototype.qtIndex.call({
+      x: this.getXY().x,
+      y: this.getXY().y,
+      r: 1
+    }, node);
+  }
+
 
   setVisual(visual: { ch?: string, fg?: string }) {
     this._visual = { ...this._visual, ...visual };
