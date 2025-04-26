@@ -1,6 +1,6 @@
 import Scheduler from "../lib/rotjs/scheduler/scheduler";
 import Simplex from "../lib/rotjs/noise/simplex";
-import Entity, { EntityConstructor, Actor } from "./entity";
+import Entity from "./entity";
 import { TerrainConstructor, Terrain as TerrainClass } from "./entities/terrain";
 import XY from "./xy";
 import Game from "./game";
@@ -87,11 +87,13 @@ export default class MainLevel {
   }
 
   lavaloop() {
-    const tickTimeMs = 5000
+    const tickTimeMs = 100
     const loop = () => {
       // cellular automata lava "spread"
       // using spread operator to force Set iterator or this loop would be recursive
       for (let lava of [...this.map.getTagged(Terrain.Lava)]) {
+        // high tick and high chance to skip makes lava spread look "smoother"
+        if (ROT.RNG.getPercentage() < 90) continue
         // TODO move to lava.act OR treat as component
         // TODO ultimately needs to return terrain, items and mobs - items and mobs get destroyed
         let { x, y } = lava.getXY()
@@ -393,9 +395,11 @@ export default class MainLevel {
     let validCoords: XY[] = terrainsWithMobs.flatMap(
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
-    ROT.RNG.shuffle(validCoords).slice(0, population).forEach(xy => {
-      // TODO generate dino uniqueness
-      this.dinos.add(new Dino(this, xy))
+    ROT.RNG.shuffle(validCoords).slice(0, population).forEach((xy, i) => {
+      let level = i % 3 + 1
+      let d = new Dino(this, xy)
+      d.level = level
+      this.dinos.add(d)
     })
   }
 }

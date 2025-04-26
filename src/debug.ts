@@ -7,7 +7,7 @@ export function debug(level: MainLevel) {
   // level.player.setPosition(new XY(99, 30))
 
 
-  const fps = new FPS({meter: true, stylesFPS: {'fontSize': '10px'}, meterLineHeight: 1})
+  const fps = new FPS({ meter: true, stylesFPS: { 'fontSize': '10px' }, meterLineHeight: 1 })
   function updateFPS() {
     fps.frame()
     requestAnimationFrame(updateFPS)
@@ -31,4 +31,6 @@ export function debug(level: MainLevel) {
   })
 }
 
-
+export function debugLog(...args: any[]) {
+  if (DEBUG > 1) console.log(...args)
+}
