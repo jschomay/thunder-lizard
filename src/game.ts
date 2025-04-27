@@ -56,6 +56,12 @@ export default class Game {
     if (level instanceof MainLevel) {
 
       if (this.detectMobile()) {
+        let pauseButtonEl = document.getElementById("pause")!
+        pauseButtonEl.classList.remove("hidden")
+        pauseButtonEl.classList.add("absolute")
+        pauseButtonEl.addEventListener("touchstart",
+          () => this.onKeyDown(new KeyboardEvent("keydown", { 'key': 'p', keyCode: 80 })))
+
         let dirInput = null;
         let id = null;
         let move = () => {
