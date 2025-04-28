@@ -6,6 +6,9 @@ import { SpeedActor } from "../../lib/rotjs";
 import { debugLog } from "../debug";
 import { relativePosition } from "../utils";
 import * as Terrain from "../entities/terrain";
+import { NUM_DINO_LEVELS } from "../constants";
+
+const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
 
 let xy = new XY(0, 0)
 export default class Dino extends Entity implements SpeedActor {
@@ -26,7 +29,7 @@ export default class Dino extends Entity implements SpeedActor {
   }
 
   getVisual() {
-    return { ...super.getVisual(), ch: this.level + "" }
+    return { ...super.getVisual(), ch: dinoCharMap[this.level - 1] }
   }
 
   getSpeed() {
@@ -38,7 +41,7 @@ export default class Dino extends Entity implements SpeedActor {
     if (this.cooldown > 0) {
       return
     }
-    this.cooldown = 4 - this.getSpeed()
+    this.cooldown = NUM_DINO_LEVELS + 1 - this.getSpeed()
 
     const nearDinos = this.getLevel().dinos.nearest(this.getXY())
 
@@ -64,7 +67,7 @@ export default class Dino extends Entity implements SpeedActor {
       }
 
       // "hone in" more accurately when closer
-      if (this.pursuit.length < 3) {
+      if (this.pursuit.length < 5) {
         this.pursue(this.prey)
       }
 
@@ -178,9 +181,13 @@ export default class Dino extends Entity implements SpeedActor {
     let oppositeDirection = (directionOfThreat + 2) % 4
     let escape = this.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))
     if (this.isValidPosition(escape)) {
-      this.moveTo(escape)
+      if (this.isValidPosition(escape)) this.moveTo(escape)
+    } else {
+      // try to go adjacent
+      let adjacent = ROT.DIRS[4][Math.abs(oppositeDirection + ROT.RNG.getItem([1, -1])!) % 4]
+      let otherEscape = this.getXY().plus(new XY(...adjacent))
+      if (this.isValidPosition(otherEscape)) this.moveTo(otherEscape)
     }
-    // TODO else try to go adjacent (dir +/- 1 % 4)
   }
 
   // TODO move this check somewhere else

@@ -14,7 +14,7 @@ import { DEBUG, debug } from "./debug";
 import Dino from "./entities/dino";
 import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
-import { MAP_SIZE } from "./constants";
+import { MAP_SIZE, NUM_DINO_LEVELS } from "./constants";
 import * as Animated from "./systems/animated";
 
 
@@ -405,7 +405,7 @@ export default class MainLevel {
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
     ROT.RNG.shuffle(validCoords).slice(0, population).forEach((xy, i) => {
-      let level = i % 3 + 1
+      let level = i % NUM_DINO_LEVELS + 1
       let d = new Dino(this, xy)
       d.level = level
       this.dinos.add(d)
