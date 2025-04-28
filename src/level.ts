@@ -244,6 +244,15 @@ export default class MainLevel {
       e = this.dinos.at(e.getXY()) || e
       this.draw(e)
     }
+    if (DEBUG > 1) {
+      for (let d of this.dinos.withIn(this._getViewport())) {
+        if (d.pursuit) {
+          for (let xy of d.pursuit.slice(0, -1)) {
+            this.game.display.drawOver(xy.x - this._viewportOffset.x, xy.y - this._viewportOffset.y, ".", "red")
+          }
+        }
+      }
+    }
   }
 
   getSize() { return this._viewportSize; }

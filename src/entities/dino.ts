@@ -13,6 +13,7 @@ export default class Dino extends Entity implements SpeedActor {
 
   // TODO make an observe component that chooses behavior
   observationRange: number
+  cooldown: number = 0
 
   // TODO put these in Predator component (herbavore and herding too)
   predator = true
@@ -29,17 +30,23 @@ export default class Dino extends Entity implements SpeedActor {
   }
 
   getSpeed() {
-    return 1;
+    return this.level;
   }
 
   act() {
+    this.cooldown--
+    if (this.cooldown > 0) {
+      return
+    }
+    this.cooldown = 4 - this.getSpeed()
+
     const nearDinos = this.getLevel().dinos.nearest(this.getXY())
 
     debugLog(this.level, this.observationRange, "------------------")
 
     // TODO periodically observe
-    // faking this by forcing ~10% of the time
-    if (ROT.RNG.getPercentage() < 10) {
+    // faking this by forcing n% of the time
+    if (ROT.RNG.getPercentage() < 20) {
       this.pursuit = null
       this.prey = null
     }
@@ -49,20 +56,41 @@ export default class Dino extends Entity implements SpeedActor {
       // chase
       debugLog(this.level, "chasing", this.prey.level)
 
-      // reached target
-      if (this.pursuit.length === 1) {
-        // TODO make sure dino is still there
-        debugLog(this.level, "reached prey")
-        this.getLevel().dinos.remove(this.prey)
-        this.prey = null
+      if (this.pursuit.length === 0) {
+        // shouldn't happen, but rarely it does, not quite sure how
         this.pursuit = null
+        this.prey = null
         return
       }
 
+      // "hone in" more accurately when closer
+      if (this.pursuit.length < 3) {
+        this.pursue(this.prey)
+      }
+
       // move closer
-      if (this.pursuit.length) {
-        let target = this.pursuit[0]
+      if (this.pursuit.length > 1) {
+        let pathTarget = this.pursuit[0]
+        // path has diagonals, but dino can only move orthogonally
+        let target = this.getXY().plus(new XY(...ROT.DIRS[4][relativePosition(this.getXY(), pathTarget)]))
+        if (target.is(pathTarget)) this.pursuit.shift()
+        // if a dino or lava got in the way, don't do anything, next observation cycle will get a better path
         if (this.isValidPosition(target)) this.moveTo(target)
+        return
+      }
+
+      // reached target
+      if (this.pursuit.length === 1) {
+        // prey might have moved or died since setting path, so check
+        if (this.getLevel().dinos.at(this.pursuit[0]) === this.prey) {
+          debugLog(this.level, "reached prey")
+          this.getLevel().dinos.remove(this.prey)
+          // rest after eating, based on how "heavy" the meal was
+          this.cooldown = this.prey.level * 5
+        }
+        this.prey = null
+        this.pursuit = null
+        return
       }
     }
 
@@ -132,7 +160,8 @@ export default class Dino extends Entity implements SpeedActor {
       return this.isValidTerrain(xy);
     }
 
-    var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback, { topology: 4 });
+    // uses 8-direction for paths to get diagonals
+    var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback);
 
     let path: XY[] = []
     astar.compute(this.getXY().x, this.getXY().y, (x, y) => {
