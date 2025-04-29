@@ -35,8 +35,8 @@ export default class MainLevel {
     this.game = game;
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
-    this._viewportSize = new XY(65, 50);
-    this._viewportOffset = new XY(200, 200);
+    this._viewportSize = new XY(MAP_SIZE / 8, MAP_SIZE / 8);
+    this._viewportOffset = new XY(MAP_SIZE / 2, MAP_SIZE / 2);
     this.scheduler = new ROT.Scheduler.Speed();
 
     this.player = new Player(this, new XY(0, 0))

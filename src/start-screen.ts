@@ -7,7 +7,7 @@ import WorldMap from "./map";
 import { RNG } from "../lib/rotjs";
 import Entity from "./entity";
 
-const [W, H] = [140, 50]
+const [W, H] = [140, 70]
 
 export default class StartScreen {
 

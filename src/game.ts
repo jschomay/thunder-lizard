@@ -18,7 +18,7 @@ export default class Game {
     })
     this.display = new ROT.Display({ fontSize });
     this._container = this.display.getContainer()!
-    this._container.classList.add("max-h-screen", "max-w-full", "scale-y-90")
+    this._container.classList.add("max-h-screen", "max-w-full")
     document.body.appendChild(this._container);
 
     // TODO only for debugging
@@ -51,14 +51,20 @@ export default class Game {
   switchLevel(level: MainLevel | StartScreen): void {
     this.level = level;
     let size = level.getSize();
-    this.display.setOptions({ width: size.x, height: size.y, forceSquareRatio: false });
+    this.display.setOptions({
+      width: size.x,
+      height: size.y,
+      forceSquareRatio: true,
+      fontFamily: "Sans-serif",
+      bg: "#111",
+      spacing: 0.9
+    });
 
     if (level instanceof MainLevel) {
 
       if (this.detectMobile()) {
         let pauseButtonEl = document.getElementById("pause")!
-        pauseButtonEl.classList.remove("hidden")
-        pauseButtonEl.classList.add("absolute")
+        pauseButtonEl.style.display = "block"
         pauseButtonEl.addEventListener("touchstart",
           () => this.onKeyDown(new KeyboardEvent("keydown", { 'key': 'p', keyCode: 80 })))
 

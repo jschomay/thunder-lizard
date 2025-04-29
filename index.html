@@ -45,6 +45,10 @@
     #virtual-joystick div:active {
       opacity: 0.8;
     }
+
+    #pause {
+      display: none;
+    }
   </style>
   <title>Thunder Lizard: Eat or be eaten</title>
 </head>
@@ -52,7 +56,7 @@
 <body class="bg-black min-h-screen flex items-center justify-center" style="background: black;">
   <p id="status">LOADING...</p>
   <script type="module" src="/src/main.ts"></script>
-  <div id="pause" class="hidden top-4 left-4 w-8 h-8 z-40">⏸︎</div>
+  <div id="pause" class="absolute top-4 left-4 w-10 h-10 z-40">⏸︎</div>
   <div id="virtual-joystick">
     <div id="up"></div>
     <div id="right"></div>
