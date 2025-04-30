@@ -6,46 +6,36 @@ import { SpeedActor } from "../../lib/rotjs";
 import { debugLog } from "../debug";
 import { relativePosition } from "../utils";
 import * as Terrain from "../entities/terrain";
-import { NUM_DINO_LEVELS } from "../constants";
 
 const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
 
 let xy = new XY(0, 0)
 export default class Dino extends Entity implements SpeedActor {
-  level: number = 0
-
-  // TODO make an observe component that chooses behavior
-  observationRange: number
-  cooldown: number = 0
+  id: number
+  dominance: number = 0
 
   // TODO put these in Predator component (herbavore and herding too)
   predator = true
   prey: Dino | null = null
   pursuit: XY[] | null = null
 
-  constructor(level: Level, xy: XY) {
+  constructor(level: Level, xy: XY, id: number) {
     super(level, xy, { ch: "𑿋", fg: "lightgrey" });
-    this.observationRange = ROT.RNG.getUniformInt(20, 40)
+    this.id = id
   }
 
   getVisual() {
-    return { ...super.getVisual(), ch: dinoCharMap[this.level - 1] }
+    return { ...super.getVisual(), ch: dinoCharMap[this.dominance - 1] }
   }
 
   getSpeed() {
-    return this.level;
+    return this.dominance;
   }
 
   act() {
-    this.cooldown--
-    if (this.cooldown > 0) {
-      return
-    }
-    this.cooldown = NUM_DINO_LEVELS + 1 - this.getSpeed()
-
     const nearDinos = this.getLevel().dinos.nearest(this.getXY())
 
-    debugLog(this.level, this.observationRange, "------------------")
+    debugLog(this.dominance, "------------------")
 
     // TODO periodically observe
     // faking this by forcing n% of the time
@@ -57,7 +47,7 @@ export default class Dino extends Entity implements SpeedActor {
     // actively chasing
     if (this.pursuit && this.prey) {
       // chase
-      debugLog(this.level, "chasing", this.prey.level)
+      debugLog(this.dominance, "chasing", this.prey.dominance)
 
       if (this.pursuit.length === 0) {
         // shouldn't happen, but rarely it does, not quite sure how
@@ -86,10 +76,11 @@ export default class Dino extends Entity implements SpeedActor {
       if (this.pursuit.length === 1) {
         // prey might have moved or died since setting path, so check
         if (this.getLevel().dinos.at(this.pursuit[0]) === this.prey) {
-          debugLog(this.level, "reached prey")
+          debugLog(this.dominance, "reached prey")
           this.getLevel().dinos.remove(this.prey)
+          // TODO move this to the system
           // rest after eating, based on how "heavy" the meal was
-          this.cooldown = this.prey.level * 5
+          // this.cooldown = this.prey.dominance * 5
         }
         this.prey = null
         this.pursuit = null
@@ -105,11 +96,11 @@ export default class Dino extends Entity implements SpeedActor {
     for (let d of nearDinos) {
       if (d === this) continue
       let dist = this.getXY().dist(d.getXY())
-      if (dist > this.observationRange) break
+      if (dist > 30) break
 
-      if (d.level > this.level) {
+      if (d.dominance > this.dominance) {
         // run away
-        debugLog(this.level, "running from", d.level)
+        debugLog(this.dominance, "running from", d.dominance)
         this.flee(d)
         return
       }
@@ -118,11 +109,11 @@ export default class Dino extends Entity implements SpeedActor {
     // check for prey
     let target;
     for (let d of nearDinos) {
-      debugLog(this.level, "considering", d.level)
+      debugLog(this.dominance, "considering", d.dominance)
       // find first viable dino in observation range
       const dist = this.getXY().dist(d.getXY())
-      if (dist > this.observationRange) break
-      if (d.level >= this.level) continue
+      if (dist > 30) break
+      if (d.dominance >= this.dominance) continue
       if (!target) {
         target = d
         continue
@@ -130,21 +121,21 @@ export default class Dino extends Entity implements SpeedActor {
 
       // look for next best target, stop looking if not found
       let score = 0
-      if (d.level > target.level) {
-        score += d.level - target.level
+      if (d.dominance > target.dominance) {
+        score += d.dominance - target.dominance
       }
       score -= Math.floor(d.getXY().dist(target.getXY()) / 2)
       if (score > 0) {
         target = d
-        debugLog(this.level, "found better option", target.level)
+        debugLog(this.dominance, "found better option", target.dominance)
       } else {
-        debugLog(this.level, "stopping search")
+        debugLog(this.dominance, "stopping search")
         break
       }
     }
 
     if (target) {
-      debugLog(this.level, "going to pursue", target.level)
+      debugLog(this.dominance, "going to pursue", target.dominance)
       this.prey = target
       this.pursue(target)
       return
@@ -176,7 +167,7 @@ export default class Dino extends Entity implements SpeedActor {
   }
 
   flee(danger: Entity) {
-    debugLog(this.level, "fleeing")
+    debugLog(this.dominance, "fleeing")
     let directionOfThreat = relativePosition(this.getXY(), danger.getXY())
     let oppositeDirection = (directionOfThreat + 2) % 4
     let escape = this.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))

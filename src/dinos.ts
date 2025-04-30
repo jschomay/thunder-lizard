@@ -23,7 +23,6 @@ export default class Dinos {
       maxLevels: 8
       , ...qtProps
     });
-
     this._index = new Map()
   }
 

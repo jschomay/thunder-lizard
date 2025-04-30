@@ -20,6 +20,7 @@
     "yy-fps": "^2.0.1"
   },
   "dependencies": {
-    "@timohausmann/quadtree-ts": "^2.2.2"
+    "@timohausmann/quadtree-ts": "^2.2.2",
+    "bitecs": "^0.3.40"
   }
 }

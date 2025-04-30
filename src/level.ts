@@ -16,6 +16,13 @@ import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
 import { MAP_SIZE, NUM_DINO_LEVELS } from "./constants";
 import * as Animated from "./systems/animated";
+import awarenessSystem from "./systems/awareness";
+import { createWorld, addEntity, IWorld, addComponent } from "bitecs";
+import { Awareness } from "./components";
+
+export interface ECSWorld extends IWorld {
+  level: MainLevel;
+}
 
 
 export default class MainLevel {
@@ -28,6 +35,7 @@ export default class MainLevel {
   textBuffer: TextBuffer;
   game: Game
   player: Player
+  ecsWorld: ECSWorld
   paused: null | ((value: any) => void) = null // pause check and call to resume
   whenRunning: Promise<any> = Promise.resolve()
 
@@ -40,6 +48,8 @@ export default class MainLevel {
     this.scheduler = new ROT.Scheduler.Speed();
 
     this.player = new Player(this, new XY(0, 0))
+
+    this.ecsWorld = createWorld({ level: this })
 
     this._generateMap();
     this._generateMobs();
@@ -145,9 +155,7 @@ export default class MainLevel {
   async mainLoop() {
     const tickTimeMs = 300
     const loop = () => {
-      for (let e of this.dinos.withIn(this._getViewport())) {
-        e.act()
-      }
+      awarenessSystem(this.ecsWorld)
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
@@ -240,12 +248,12 @@ export default class MainLevel {
    * Draws the current viewport
    */
   drawMap(): void {
-    for (let e of (this.map.get(this._getViewport()) as Entity[])) {
+    for (let e of (this.map.get(this.getViewport()) as Entity[])) {
       e = this.dinos.at(e.getXY()) || e
       this.draw(e)
     }
     if (DEBUG > 1) {
-      for (let d of this.dinos.withIn(this._getViewport())) {
+      for (let d of this.dinos.withIn(this.getViewport())) {
         if (d.pursuit) {
           for (let xy of d.pursuit.slice(0, -1)) {
             this.game.display.drawOver(xy.x - this._viewportOffset.x, xy.y - this._viewportOffset.y, ".", "red")
@@ -284,7 +292,7 @@ export default class MainLevel {
     fov.compute(player_x, player_y, fov_r, wrappedCb);
   }
 
-  _getViewport() {
+  getViewport() {
     return {
       x: this._viewportOffset.x,
       y: this._viewportOffset.y,
@@ -405,9 +413,18 @@ export default class MainLevel {
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
     ROT.RNG.shuffle(validCoords).slice(0, population).forEach((xy, i) => {
-      let level = i % NUM_DINO_LEVELS + 1
-      let d = new Dino(this, xy)
-      d.level = level
+      let dominance = i % NUM_DINO_LEVELS + 1
+
+      let id = addEntity(this.ecsWorld)
+
+      addComponent(this.ecsWorld, Awareness, id)
+      Awareness.cooldown[id] = 0
+      Awareness.responsiveness[id] = NUM_DINO_LEVELS - dominance
+
+
+      // TODO keep adding components
+      let d = new Dino(this, xy, id)
+      d.dominance = dominance
       this.dinos.add(d)
     })
   }
