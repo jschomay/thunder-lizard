@@ -10,10 +10,12 @@ export type Bounds = { x: number, y: number, w: number, h: number }
  */
 export default class Dinos {
 
+  private _ids: Map<number, Dino>
   private _qt: Quadtree<Dino>
   private _index: Map<string, Dino>
 
   constructor(qtProps: Partial<QuadtreeProps> = {}) {
+    this._ids = new Map()
     this._qt = new Quadtree<Dino>({
       width: MAP_SIZE,
       height: MAP_SIZE,
@@ -26,6 +28,8 @@ export default class Dinos {
     this._index = new Map()
   }
 
+  get(id: number): Dino | undefined { return this._ids.get(id) }
+
   at(xy: XY): Dino | null;
   at(x: number, y: number): Dino | null;
   at(xyOrX: XY | number, y?: number): Dino | null {
@@ -36,11 +40,13 @@ export default class Dinos {
   add(e: Dino) {
     this._qt.insert(e);
     this._index.set(e.getXY().toString(), e)
+    this._ids.set(e.id, e)
   }
 
   remove(e: Dino) {
     this._qt.remove(e);
     this._index.delete(e.getXY().toString())
+    this._ids.delete(e.id)
   }
 
   /**

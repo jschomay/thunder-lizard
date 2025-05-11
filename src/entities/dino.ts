@@ -6,22 +6,26 @@ import { SpeedActor } from "../../lib/rotjs";
 import { debugLog } from "../debug";
 import { relativePosition } from "../utils";
 import * as Terrain from "../entities/terrain";
+import { addComponent } from "bitecs";
+import { Awareness, Pursue } from "../components";
+import Path from '../systems/path'
 
 const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
+
+export type dinoKind = "PREDATOR" | "HERBIVORE" | "SCAVENGER"
 
 let xy = new XY(0, 0)
 export default class Dino extends Entity implements SpeedActor {
   id: number
-  dominance: number = 0
+  dominance: number
+  kind: dinoKind
 
-  // TODO put these in Predator component (herbavore and herding too)
-  predator = true
-  prey: Dino | null = null
-  pursuit: XY[] | null = null
 
-  constructor(level: Level, xy: XY, id: number) {
+  constructor(level: Level, xy: XY, id: number, dominance: number, kind: dinoKind) {
     super(level, xy, { ch: "𑿋", fg: "lightgrey" });
     this.id = id
+    this.dominance = dominance
+    this.kind = kind
   }
 
   getVisual() {
@@ -35,58 +39,19 @@ export default class Dino extends Entity implements SpeedActor {
   act() {
     const nearDinos = this.getLevel().dinos.nearest(this.getXY())
 
-    debugLog(this.dominance, "------------------")
+    debugLog(this.id, "------------------")
 
-    // TODO periodically observe
-    // faking this by forcing n% of the time
-    if (ROT.RNG.getPercentage() < 20) {
-      this.pursuit = null
-      this.prey = null
-    }
+    // // TODO periodically observe
+    // // faking this by forcing n% of the time
+    // if (ROT.RNG.getPercentage() < 20) {
+    //   this.pursuit = null
+    //   this.prey = null
+    // }
 
-    // actively chasing
-    if (this.pursuit && this.prey) {
-      // chase
-      debugLog(this.dominance, "chasing", this.prey.dominance)
-
-      if (this.pursuit.length === 0) {
-        // shouldn't happen, but rarely it does, not quite sure how
-        this.pursuit = null
-        this.prey = null
-        return
-      }
-
-      // "hone in" more accurately when closer
-      if (this.pursuit.length < 5) {
-        this.pursue(this.prey)
-      }
-
-      // move closer
-      if (this.pursuit.length > 1) {
-        let pathTarget = this.pursuit[0]
-        // path has diagonals, but dino can only move orthogonally
-        let target = this.getXY().plus(new XY(...ROT.DIRS[4][relativePosition(this.getXY(), pathTarget)]))
-        if (target.is(pathTarget)) this.pursuit.shift()
-        // if a dino or lava got in the way, don't do anything, next observation cycle will get a better path
-        if (this.isValidPosition(target)) this.moveTo(target)
-        return
-      }
-
-      // reached target
-      if (this.pursuit.length === 1) {
-        // prey might have moved or died since setting path, so check
-        if (this.getLevel().dinos.at(this.pursuit[0]) === this.prey) {
-          debugLog(this.dominance, "reached prey")
-          this.getLevel().dinos.remove(this.prey)
-          // TODO move this to the system
-          // rest after eating, based on how "heavy" the meal was
-          // this.cooldown = this.prey.dominance * 5
-        }
-        this.prey = null
-        this.pursuit = null
-        return
-      }
-    }
+    // // actively chasing
+    // if (this.pursuit && this.prey) {
+    //   // chase
+    // }
 
     // TODO check for lava
 
@@ -100,7 +65,7 @@ export default class Dino extends Entity implements SpeedActor {
 
       if (d.dominance > this.dominance) {
         // run away
-        debugLog(this.dominance, "running from", d.dominance)
+        debugLog(this.id, "running from", d.id)
         this.flee(d)
         return
       }
@@ -109,10 +74,10 @@ export default class Dino extends Entity implements SpeedActor {
     // check for prey
     let target;
     for (let d of nearDinos) {
-      debugLog(this.dominance, "considering", d.dominance)
+      debugLog(this.id, "considering", d.id)
       // find first viable dino in observation range
       const dist = this.getXY().dist(d.getXY())
-      if (dist > 30) break
+      if (dist > Awareness.range[d.id]) break
       if (d.dominance >= this.dominance) continue
       if (!target) {
         target = d
@@ -127,17 +92,18 @@ export default class Dino extends Entity implements SpeedActor {
       score -= Math.floor(d.getXY().dist(target.getXY()) / 2)
       if (score > 0) {
         target = d
-        debugLog(this.dominance, "found better option", target.dominance)
+        debugLog(this.id, "found better option", target.id)
       } else {
-        debugLog(this.dominance, "stopping search")
+        debugLog(this.id, "stopping search")
         break
       }
     }
 
     if (target) {
-      debugLog(this.dominance, "going to pursue", target.dominance)
-      this.prey = target
-      this.pursue(target)
+      debugLog(this.id, "going to pursue", target.id)
+      addComponent(this.getLevel().ecsWorld, Pursue, this.id)
+      Pursue.target[this.id] = target.id
+      this.calculatePath(target)
       return
     }
 
@@ -145,7 +111,8 @@ export default class Dino extends Entity implements SpeedActor {
 
   }
 
-  pursue(target: Dino) {
+  calculatePath(target: Dino) {
+    Path.init(this.id)
     var passableCallback = (x, y) => {
       xy.x = x
       xy.y = y
@@ -157,17 +124,15 @@ export default class Dino extends Entity implements SpeedActor {
     // uses 8-direction for paths to get diagonals
     var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback);
 
-    let path: XY[] = []
     astar.compute(this.getXY().x, this.getXY().y, (x, y) => {
-      path.push(new XY(x, y))
+      Path.push(this.id, x, y)
     });
-    // index 0 is current position
-    path.shift()
-    this.pursuit = path
+    // index 0 is current position, so set focus on the next step
+    Path.advance(this.id)
   }
 
   flee(danger: Entity) {
-    debugLog(this.dominance, "fleeing")
+    debugLog(this.id, "fleeing")
     let directionOfThreat = relativePosition(this.getXY(), danger.getXY())
     let oppositeDirection = (directionOfThreat + 2) % 4
     let escape = this.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))

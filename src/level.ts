@@ -14,11 +14,13 @@ import { DEBUG, debug } from "./debug";
 import Dino from "./entities/dino";
 import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
-import { MAP_SIZE, NUM_DINO_LEVELS } from "./constants";
+import { MAP_SIZE, NUM_DINO_LEVELS, NUM_DINOS } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
-import { createWorld, addEntity, IWorld, addComponent } from "bitecs";
-import { Awareness } from "./components";
+import { createWorld, addEntity, IWorld, addComponent, hasComponent } from "bitecs";
+import { Awareness, Movement, Pursue } from "./components";
+import movementSystem from "./systems/movement";
+import Path from "./systems/path";
 
 export interface ECSWorld extends IWorld {
   level: MainLevel;
@@ -43,7 +45,7 @@ export default class MainLevel {
     this.game = game;
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
-    this._viewportSize = new XY(MAP_SIZE / 8, MAP_SIZE / 8);
+    this._viewportSize = new XY(MAP_SIZE / 6, MAP_SIZE / 6);
     this._viewportOffset = new XY(MAP_SIZE / 2, MAP_SIZE / 2);
     this.scheduler = new ROT.Scheduler.Speed();
 
@@ -156,6 +158,7 @@ export default class MainLevel {
     const tickTimeMs = 300
     const loop = () => {
       awarenessSystem(this.ecsWorld)
+      movementSystem(this.ecsWorld)
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
@@ -254,9 +257,13 @@ export default class MainLevel {
     }
     if (DEBUG > 1) {
       for (let d of this.dinos.withIn(this.getViewport())) {
-        if (d.pursuit) {
-          for (let xy of d.pursuit.slice(0, -1)) {
-            this.game.display.drawOver(xy.x - this._viewportOffset.x, xy.y - this._viewportOffset.y, ".", "red")
+        if (hasComponent(this.ecsWorld, Pursue, d.id)) {
+          let x, y
+          let len = Path.length(d.id) * 2
+          for (let i = 2; i < (len - 2); i += 2) {
+            x = Pursue.path[d.id][i]
+            y = Pursue.path[d.id][i + 1]
+            this.game.display.drawOver(x - this._viewportOffset.x, y - this._viewportOffset.y, ".", "red")
           }
         }
       }
@@ -408,23 +415,27 @@ export default class MainLevel {
       Terrain.Jungle
     ]
 
-    let population = 60
     let validCoords: XY[] = terrainsWithMobs.flatMap(
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
-    ROT.RNG.shuffle(validCoords).slice(0, population).forEach((xy, i) => {
+    ROT.RNG.shuffle(validCoords).slice(0, NUM_DINOS).forEach((xy, i) => {
       let dominance = i % NUM_DINO_LEVELS + 1
 
       let id = addEntity(this.ecsWorld)
 
-      addComponent(this.ecsWorld, Awareness, id)
-      Awareness.cooldown[id] = 0
-      Awareness.responsiveness[id] = NUM_DINO_LEVELS - dominance
+      const BASE_REACTION_TIME = 10
 
+      addComponent(this.ecsWorld, Awareness, id)
+      Awareness.range[id] = 30
+      Awareness.cooldown[id] = 0
+      Awareness.reactionTime[id] = BASE_REACTION_TIME
+
+      addComponent(this.ecsWorld, Movement, id)
+      Movement.cooldown[id] = 0
+      Movement.lag[id] = NUM_DINO_LEVELS - dominance
 
       // TODO keep adding components
-      let d = new Dino(this, xy, id)
-      d.dominance = dominance
+      let d = new Dino(this, xy, id, dominance, "PREDATOR")
       this.dinos.add(d)
     })
   }

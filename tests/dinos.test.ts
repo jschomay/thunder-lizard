@@ -19,17 +19,26 @@ test('basic', () => {
 
   // sets
 
-  const d1 = new Dino(level, new XY(0, 0))
-  const d2 = new Dino(level, new XY(9, 0))
-  const d3 = new Dino(level, new XY(8, 0))
+  const d1 = new Dino(level, new XY(0, 0), 1)
+  const d2 = new Dino(level, new XY(9, 0), 2)
+  const d3 = new Dino(level, new XY(8, 0), 3)
   dinos.add(d1)
   dinos.add(d2)
 
+  expect(dinos.get(1)).toBe(d1)
   expect(dinos.at(0, 0)).toBe(d1)
 
   // nearest sorts for you
   expect(dinos.nearest(new XY(0, 0))).toEqual([d1, d2])
   expect(dinos.nearest(new XY(10, 0))).toEqual([d2, d1])
+
+  // removeals
+  dinos.remove(d1)
+  expect(dinos.get(1)).toBeUndefined()
+  expect(dinos.at(0, 0)).toBeNull(0)
+  expect(dinos.nearest(new XY(0, 0))).toEqual([d2])
+
+  dinos.add(d1)
 
   // maxObjects is respected
   dinos.add(d3)
