@@ -423,7 +423,7 @@ export default class MainLevel {
 
       let id = addEntity(this.ecsWorld)
 
-      const BASE_REACTION_TIME = 10
+      const BASE_REACTION_TIME = 5
 
       addComponent(this.ecsWorld, Awareness, id)
       Awareness.range[id] = 30

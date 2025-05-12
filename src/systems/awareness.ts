@@ -12,6 +12,11 @@ export default function awarenessSystem(world: ECSWorld) {
   for (let d of dinos) {
     if (!hasComponent(world, Awareness, d.id)) continue
 
+    // NOTE instead of cooldown, have "elapsed time" that counts _up_
+    // and an "alertness delay" that is the number of ticks until observing
+    // so delay of 1 happens every turn, 5 every 5 turns, etc
+    // that way delay can have a modifier set and things are little more intuitive
+    // it can also have a one time offset for single events like stun
     if (Awareness.cooldown[d.id] > 0) {
       debugLog(d.id, "cooldown", Awareness.cooldown[d.id])
       Awareness.cooldown[d.id] -= 1

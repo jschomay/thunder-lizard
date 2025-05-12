@@ -1,3 +1,5 @@
+import * as Terrain from "./entities/terrain";
+import MainLevel from "./level";
 import XY from "./xy";
 
 /**
@@ -64,3 +66,20 @@ export function relativePositionAlternative(xy1: XY, xy2: XY) {
   if (dx > dy) return (xy1.x > xy2.x) ? 3 : 1
   else return (xy1.y > xy2.y) ? 0 : 2
 }
+
+
+
+/** No dino and no dangerous terrain in target
+  */
+export function isValidPosition(xy: XY, level: MainLevel) {
+  let d = level.dinos.at(xy)
+  return !d && isValidTerrain(xy, level)
+}
+
+export function isValidTerrain(xy: XY, level: MainLevel) {
+  let t = level.map.at(xy)
+  return true
+    && !(t instanceof Terrain.Ocean)
+    && !(t instanceof Terrain.Lava)
+}
+

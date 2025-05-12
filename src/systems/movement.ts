@@ -9,7 +9,7 @@ import { Awareness, Flee, Movement, Pursue } from '../components'
 import { DEBUG, debugLog } from '../debug'
 import XY from '../xy'
 import Path from './path'
-import { relativePosition } from '../utils'
+import { isValidPosition, relativePosition } from '../utils'
 
 
 /**
@@ -32,7 +32,7 @@ export default function movementSystem(world: ECSWorld) {
       _handlePursue(world, d.id)
 
     } else if (hasComponent(world, Flee, d.id)) {
-      _handleFlee()
+      _handleFlee(world, d.id)
     }
 
   }
@@ -74,7 +74,7 @@ function _handlePursue(world: ECSWorld, id: number) {
   if (!target.is(orthogonalTarget)) {
     // TODO move this over from dino.ts after moving flee
     // if a dino or lava got in the way, wait for next pass
-    if (selfDino.isValidPosition(orthogonalTarget)) selfDino.moveTo(orthogonalTarget)
+    if (isValidPosition(orthogonalTarget, world.level)) selfDino.moveTo(orthogonalTarget)
     return
   }
 
@@ -91,7 +91,7 @@ function _handlePursue(world: ECSWorld, id: number) {
   // move closer
   // TODO move this over from dino.ts after moving flee
   // if a dino or lava got in the way, wait for next pass
-  if (selfDino.isValidPosition(target)) {
+  if (isValidPosition(target, world.level)) {
     selfDino.moveTo(target)
     Path.advance(id)
   }
@@ -107,6 +107,25 @@ function _handlePursue(world: ECSWorld, id: number) {
 
 }
 
-function _handleFlee() {
-  // TODO
+const dangerSource = new XY()
+function _handleFlee(world: ECSWorld, id: number) {
+  debugLog(id, "fleeing")
+  const selfDino = world.level.dinos.get(id)
+  if (!selfDino) return
+
+  dangerSource.x = Flee.source[id][0]
+  dangerSource.y = Flee.source[id][1]
+
+  let directionOfThreat = relativePosition(selfDino.getXY(), dangerSource)
+  let oppositeDirection = (directionOfThreat + 2) % 4
+  let escape = selfDino.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))
+  if (isValidPosition(escape, world.level)) {
+    if (isValidPosition(escape, world.level)) selfDino.moveTo(escape)
+  } else {
+    // try to go adjacent
+    let adjacent = ROT.DIRS[4][Math.abs(oppositeDirection + ROT.RNG.getItem([1, -1])!) % 4]
+    let otherEscape = selfDino.getXY().plus(new XY(...adjacent))
+    if (isValidPosition(otherEscape, world.level)) selfDino.moveTo(otherEscape)
+  }
+
 }

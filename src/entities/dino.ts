@@ -4,11 +4,10 @@ import XY from "../xy";
 import Level from "../level";
 import { SpeedActor } from "../../lib/rotjs";
 import { debugLog } from "../debug";
-import { relativePosition } from "../utils";
-import * as Terrain from "../entities/terrain";
 import { addComponent } from "bitecs";
-import { Awareness, Pursue } from "../components";
+import { Awareness, Flee, Pursue } from "../components";
 import Path from '../systems/path'
+import { isValidTerrain } from "../utils";
 
 const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
 
@@ -66,7 +65,8 @@ export default class Dino extends Entity implements SpeedActor {
       if (d.dominance > this.dominance) {
         // run away
         debugLog(this.id, "running from", d.id)
-        this.flee(d)
+        addComponent(this.getLevel().ecsWorld, Flee, this.id)
+        Flee.source[this.id].set([d.getXY().x, d.getXY().y])
         return
       }
     }
@@ -111,6 +111,7 @@ export default class Dino extends Entity implements SpeedActor {
 
   }
 
+  // TODO probably this should live in the Awareness system
   calculatePath(target: Dino) {
     Path.init(this.id)
     var passableCallback = (x, y) => {
@@ -118,7 +119,7 @@ export default class Dino extends Entity implements SpeedActor {
       xy.y = y
       // only want to check terrain when making a path (to avoid expensive pathfinding)
       // when following the path we MUST make sure it is valid (since the terrain or dino positions can change)
-      return this.isValidTerrain(xy);
+      return isValidTerrain(xy, this.getLevel());
     }
 
     // uses 8-direction for paths to get diagonals
@@ -129,35 +130,6 @@ export default class Dino extends Entity implements SpeedActor {
     });
     // index 0 is current position, so set focus on the next step
     Path.advance(this.id)
-  }
-
-  flee(danger: Entity) {
-    debugLog(this.id, "fleeing")
-    let directionOfThreat = relativePosition(this.getXY(), danger.getXY())
-    let oppositeDirection = (directionOfThreat + 2) % 4
-    let escape = this.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))
-    if (this.isValidPosition(escape)) {
-      if (this.isValidPosition(escape)) this.moveTo(escape)
-    } else {
-      // try to go adjacent
-      let adjacent = ROT.DIRS[4][Math.abs(oppositeDirection + ROT.RNG.getItem([1, -1])!) % 4]
-      let otherEscape = this.getXY().plus(new XY(...adjacent))
-      if (this.isValidPosition(otherEscape)) this.moveTo(otherEscape)
-    }
-  }
-
-  // TODO move this check somewhere else
-  /** No dino and no dangerous terrain in target
-    */
-  isValidPosition(xy: XY) {
-    let d = this.getLevel().dinos.at(xy)
-    return !d && this.isValidTerrain(xy)
-  }
-  isValidTerrain(xy: XY) {
-    let t = this.getLevel().map.at(xy)
-    return true
-      && !(t instanceof Terrain.Ocean)
-      && !(t instanceof Terrain.Lava)
   }
 
   moveTo(xy: XY) {
