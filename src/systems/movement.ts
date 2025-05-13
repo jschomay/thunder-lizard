@@ -1,11 +1,12 @@
 import {
+  addComponent,
   hasComponent,
   removeComponent
 } from 'bitecs'
 
 import * as ROT from '../../lib/rotjs'
 import { ECSWorld } from '../level'
-import { Awareness, Flee, Movement, Pursue } from '../components'
+import { Awareness, Flee, Movement, Pursue, Stunned } from '../components'
 import { DEBUG, debugLog } from '../debug'
 import XY from '../xy'
 import Path from './path'
@@ -85,7 +86,8 @@ function _handlePursue(world: ECSWorld, id: number) {
     // TODO add carcase
     // rest after eating, based on how "heavy" the meal was
     // unsafe, but we can assume this dino with Pursue always has Awareness
-    Awareness.reactionTimeModifier[id] = targetDino.dominance * 5
+    addComponent(world, Stunned, id)
+    Stunned.duration[id] = targetDino.dominance * 5
   }
 
   // move closer
@@ -101,7 +103,7 @@ function _handlePursue(world: ECSWorld, id: number) {
   // NOTE this makes the dino more aware of all factors, not just the target
   if (Path.length(id) < 5) {
     // unsafe, but we can assume this dino with Pursue always has Awareness
-    Awareness.reactionTimeModifier[id] = -99
+    Awareness.frequencyModifier[id] = -99
     return
   }
 

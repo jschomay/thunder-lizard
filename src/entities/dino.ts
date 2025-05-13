@@ -40,12 +40,6 @@ export default class Dino extends Entity implements SpeedActor {
 
     debugLog(this.id, "------------------")
 
-    // // TODO periodically observe
-    // // faking this by forcing n% of the time
-    // if (ROT.RNG.getPercentage() < 20) {
-    //   this.pursuit = null
-    //   this.prey = null
-    // }
 
     // // actively chasing
     // if (this.pursuit && this.prey) {

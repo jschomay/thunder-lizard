@@ -423,12 +423,12 @@ export default class MainLevel {
 
       let id = addEntity(this.ecsWorld)
 
-      const BASE_REACTION_TIME = 5
+      const BASE_OBSERVE_FREQUENCY = 5
 
       addComponent(this.ecsWorld, Awareness, id)
       Awareness.range[id] = 30
-      Awareness.cooldown[id] = 0
-      Awareness.reactionTime[id] = BASE_REACTION_TIME
+      Awareness.turnsSinceLastObserve[id] = 0
+      Awareness.observeFrequency[id] = BASE_OBSERVE_FREQUENCY
 
       addComponent(this.ecsWorld, Movement, id)
       Movement.cooldown[id] = 0
