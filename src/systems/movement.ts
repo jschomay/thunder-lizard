@@ -22,13 +22,13 @@ export default function movementSystem(world: ECSWorld) {
   for (let d of dinos) {
     if (!hasComponent(world, Movement, d.id)) continue
 
-    if (Movement.cooldown[d.id] > 0) {
-      Movement.cooldown[d.id] -= 1
+    Movement.turnsSinceLastMove[d.id] += 1
+    if (Movement.turnsSinceLastMove[d.id] <= Movement.frequency[d.id]) {
       continue
     }
+    Movement.turnsSinceLastMove[d.id] = 0
 
-    Movement.cooldown[d.id] = Math.max(0, Movement.lag[d.id] + Movement.lagModifier[d.id])
-
+    // TODO break into separate query loops
     if (hasComponent(world, Pursue, d.id)) {
       _handlePursue(world, d.id)
 
@@ -103,7 +103,8 @@ function _handlePursue(world: ECSWorld, id: number) {
   // NOTE this makes the dino more aware of all factors, not just the target
   if (Path.length(id) < 5) {
     // unsafe, but we can assume this dino with Pursue always has Awareness
-    Awareness.frequencyModifier[id] = -99
+    // TODO use path system to update path and change frequency on that
+    // Awareness.frequencyModifier[id] = -99
     return
   }
 

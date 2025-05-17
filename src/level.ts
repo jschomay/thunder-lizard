@@ -428,11 +428,11 @@ export default class MainLevel {
       addComponent(this.ecsWorld, Awareness, id)
       Awareness.range[id] = 30
       Awareness.turnsSinceLastObserve[id] = 0
-      Awareness.observeFrequency[id] = BASE_OBSERVE_FREQUENCY
+      Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
 
       addComponent(this.ecsWorld, Movement, id)
-      Movement.cooldown[id] = 0
-      Movement.lag[id] = NUM_DINO_LEVELS - dominance
+      Movement.turnsSinceLastMove[id] = 0
+      Movement.frequency[id] = NUM_DINO_LEVELS - dominance
 
       // TODO keep adding components
       let d = new Dino(this, xy, id, dominance, "PREDATOR")

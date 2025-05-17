@@ -7,9 +7,8 @@ import { Types, defineComponent, } from 'bitecs'
 export const Awareness = defineComponent({
   range: Types.ui8, // how far the entity can see
   turnsSinceLastObserve: Types.ui8,
-  observeFrequency: Types.ui8, // number of passed turns until a new observe, 1 observes every turn, higher numbers skip more turns
-  frequencyModifier: Types.i8, // added to observeFrequency, cleared out after observe
-  // accuracy: Types.i8, // how correctly entity identifies what it sees
+  turnsToSkip: Types.ui8, // turns to skip, 0 observes every turn
+  accuracy: Types.i8, // percentage how correctly entity identifies what it sees
 })
 
 export const Stunned = defineComponent({
@@ -21,9 +20,8 @@ export const Stunned = defineComponent({
  * Component controlling relative "speed" aka frequency of movements
  */
 export const Movement = defineComponent({
-  cooldown: Types.ui8, // turns until next move
-  lag: Types.ui8, // frequency of moves, 0 moves eery turn, higher numbers skip more turns
-  lagModifier: Types.i8, // other components can increase or decrease lag
+  turnsSinceLastMove: Types.ui8, // turns until next move
+  frequency: Types.ui8, // frequency of moves, 0 moves eery turn, higher numbers skip more turns
 })
 
 
