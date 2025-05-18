@@ -8,36 +8,37 @@ import {
 
 import * as ROT from '../../lib/rotjs'
 import { ECSWorld } from '../level'
-import { Flee, Movement, Pursue, Stunned } from '../components'
+import { Awareness, Flee, Movement, Pursue, Stunned } from '../components'
 import { DEBUG, debugLog } from '../debug'
 import XY from '../xy'
 import Path from './path'
 import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
+import Entity from '../entity'
 
 
 export function addPursue(world: ECSWorld, id: number, other: Dino) {
-  // TODO add modifiers
   addComponent(world, Pursue, id)
   Pursue.target[id] = other.id
+  Awareness.range[id] -= 20
 }
 export function removePursue(world: ECSWorld, id: number) {
   if (hasComponent(world, Pursue, id)) {
-    // TODO reset modifiers
     removeComponent(world, Pursue, id)
+    Awareness.range[id] += 20
   }
 }
 
 export function addFlee(world: ECSWorld, id: number, other: Entity) {
-  // TODO add modifiers
   addComponent(world, Flee, id)
   Flee.source[id].set([other.getXY().x, other.getXY().y])
+  Awareness.turnsToSkip[id] += 5
 }
 
 export function removeFlee(world: ECSWorld, id: number) {
   if (hasComponent(world, Flee, id)) {
-    // TODO reset modifiers
     removeComponent(world, Flee, id)
+    Awareness.turnsToSkip[id] -= 5
   }
 }
 
@@ -95,7 +96,7 @@ function _handlePursue(world: ECSWorld, id: number) {
 
   if (nextCoord.x === -1) {
     // means the path has run out
-    // TODO shouldn't happen, but rarely it does, not quite sure how
+    // TODO shouldn't happen, but sometimes it does, not quite sure how
     if (DEBUG) console.error("empty pursue path", id, targetId)
     removePursue(world, id)
     return
