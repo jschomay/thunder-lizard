@@ -1,17 +1,11 @@
 import {
-  addComponent,
   hasComponent,
   removeComponent
 } from 'bitecs'
-import * as ROT from '../../lib/rotjs'
 import { ECSWorld } from '../level'
-import { Awareness, Flee, Pursue, Stunned } from '../components'
+import { Awareness, Pursue, Stunned } from '../components'
 import { debugLog } from '../debug'
-import Dino from '../entities/dino'
-import Entity from '../entity'
-import Path from '../systems/path'
-import XY from '../xy'
-import { isValidTerrain } from '../utils'
+import { removePursue, removeFlee, addPursue, addFlee } from './movement'
 
 
 
@@ -98,58 +92,9 @@ export default function awarenessSystem(world: ECSWorld) {
       debugLog(selfDino.id, "going to pursue", target.id)
       removeFlee(world, selfDino.id)
       addPursue(world, selfDino.id, target)
-      // TODO move this to the pursue system
-      calculatePath(selfDino, target)
     }
     if (behaviorSelected) continue
   }
 
   return world
-}
-
-// TODO move this to the pursue system (and manage updating path there)
-let xy = new XY(0, 0)
-function calculatePath(selfDino: Dino, target: Dino) {
-  Path.init(selfDino.id)
-  var passableCallback = (x, y) => {
-    xy.x = x
-    xy.y = y
-    // only want to check terrain when making a path (to avoid expensive pathfinding)
-    // when following the path we MUST make sure it is valid (since the terrain or dino positions can change)
-    return isValidTerrain(xy, selfDino.getLevel());
-  }
-
-  // uses 8-direction for paths to get diagonals
-  var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback);
-
-  astar.compute(selfDino.getXY().x, selfDino.getXY().y, (x, y) => {
-    Path.push(selfDino.id, x, y)
-  });
-  // index 0 is current position, so set focus on the next step
-  Path.advance(selfDino.id)
-}
-
-function addPursue(world: ECSWorld, id: number, other: Dino) {
-  // TODO add modifiers
-  addComponent(world, Pursue, id)
-  Pursue.target[id] = other.id
-}
-function removePursue(world: ECSWorld, id: number) {
-  if (hasComponent(world, Pursue, id)) {
-    // TODO reset modifiers
-    removeComponent(world, Pursue, id)
-  }
-}
-
-function addFlee(world: ECSWorld, id: number, other: Entity) {
-  // TODO add modifiers
-  addComponent(world, Flee, id)
-  Flee.source[id].set([other.getXY().x, other.getXY().y])
-}
-
-function removeFlee(world: ECSWorld, id: number) {
-  if (hasComponent(world, Flee, id)) {
-    // TODO reset modifiers
-    removeComponent(world, Flee, id)
-  }
 }

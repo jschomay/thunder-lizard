@@ -1,42 +1,73 @@
 import {
   addComponent,
+  defineQuery,
   hasComponent,
+  Not,
   removeComponent
 } from 'bitecs'
 
 import * as ROT from '../../lib/rotjs'
 import { ECSWorld } from '../level'
-import { Awareness, Flee, Movement, Pursue, Stunned } from '../components'
+import { Flee, Movement, Pursue, Stunned } from '../components'
 import { DEBUG, debugLog } from '../debug'
 import XY from '../xy'
 import Path from './path'
-import { isValidPosition, relativePosition } from '../utils'
+import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
+import Dino from '../entities/dino'
 
+
+export function addPursue(world: ECSWorld, id: number, other: Dino) {
+  // TODO add modifiers
+  addComponent(world, Pursue, id)
+  Pursue.target[id] = other.id
+}
+export function removePursue(world: ECSWorld, id: number) {
+  if (hasComponent(world, Pursue, id)) {
+    // TODO reset modifiers
+    removeComponent(world, Pursue, id)
+  }
+}
+
+export function addFlee(world: ECSWorld, id: number, other: Entity) {
+  // TODO add modifiers
+  addComponent(world, Flee, id)
+  Flee.source[id].set([other.getXY().x, other.getXY().y])
+}
+
+export function removeFlee(world: ECSWorld, id: number) {
+  if (hasComponent(world, Flee, id)) {
+    // TODO reset modifiers
+    removeComponent(world, Flee, id)
+  }
+}
 
 /**
- * Movement is based on the curent behavior like pursuing or fleeing or roaming
- * This system manages movement speed and the components defining movement behaviors.
+ * Systems for pursuing and fleeing with account of speed
  */
 export default function movementSystem(world: ECSWorld) {
-  const dinos = world.level.dinos.withIn(world.level.getViewport())
-  for (let d of dinos) {
-    if (!hasComponent(world, Movement, d.id)) continue
+  const pursueQuery = defineQuery([Movement, Pursue, Not(Stunned)])
+  for (let eid of pursueQuery(world)) {
 
-    Movement.turnsSinceLastMove[d.id] += 1
-    if (Movement.turnsSinceLastMove[d.id] <= Movement.frequency[d.id]) {
+    Movement.turnsSinceLastMove[eid] += 1
+    if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid]) {
       continue
     }
-    Movement.turnsSinceLastMove[d.id] = 0
+    Movement.turnsSinceLastMove[eid] = 0
+    _handlePursue(world, eid)
 
-    // TODO break into separate query loops
-    if (hasComponent(world, Pursue, d.id)) {
-      _handlePursue(world, d.id)
-
-    } else if (hasComponent(world, Flee, d.id)) {
-      _handleFlee(world, d.id)
-    }
 
   }
+
+  const fleeQuery = defineQuery([Movement, Flee, Not(Stunned)])
+  for (let eid of fleeQuery(world)) {
+    Movement.turnsSinceLastMove[eid] += 1
+    if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid]) {
+      continue
+    }
+    Movement.turnsSinceLastMove[eid] = 0
+    _handleFlee(world, eid)
+  }
+
   return world
 }
 
@@ -49,21 +80,24 @@ function _handlePursue(world: ECSWorld, id: number) {
   let targetDino = world.level.dinos.get(targetId)
   if (!selfDino) return
 
+
   // something else got the target; give up
   if (!targetDino) {
-    removeComponent(world, Pursue, id)
+    removePursue(world, id)
     return
   }
 
-  let target = new XY(...Path.current(id))
+  // initial pathfinding or "honing in"
+  if (Pursue.offset[id] === 0 || Path.length(id) < 5) _calculatePath(selfDino, targetDino)
 
-  if (target.x === -1) {
+
+  let nextCoord = new XY(...Path.current(id))
+
+  if (nextCoord.x === -1) {
     // means the path has run out
-    // shouldn't happen, but rarely it does, not quite sure how
-    // TODO I think it happens when pursuing a dino that goes away
-    // and maybe reaching it before doing a new awareness check
+    // TODO shouldn't happen, but rarely it does, not quite sure how
     if (DEBUG) console.error("empty pursue path", id, targetId)
-    removeComponent(world, Pursue, id)
+    removePursue(world, id)
     return
   }
 
@@ -71,44 +105,54 @@ function _handlePursue(world: ECSWorld, id: number) {
 
   // path has diagonals, but dino can only move orthogonally
   // so move orthogonally but don't advance the path so that the next pass will also be orthogonal
-  let orthogonalTarget = selfDino.getXY().plus(new XY(...ROT.DIRS[4][relativePosition(selfDino.getXY(), target)]))
-  if (!target.is(orthogonalTarget)) {
-    // TODO move this over from dino.ts after moving flee
+  let orthogonalTarget = selfDino.getXY().plus(new XY(...ROT.DIRS[4][relativePosition(selfDino.getXY(), nextCoord)]))
+  if (!nextCoord.is(orthogonalTarget)) {
     // if a dino or lava got in the way, wait for next pass
     if (isValidPosition(orthogonalTarget, world.level)) selfDino.moveTo(orthogonalTarget)
     return
   }
 
   // reached target
-  if (target.is(targetDino.getXY())) {
+  if (nextCoord.is(targetDino.getXY())) {
     debugLog(selfDino.id, "reached prey", targetDino.id)
     world.level.dinos.remove(targetDino)
-    // TODO add carcase
+    removePursue(world, id)
+    // TODO add carcass
     // rest after eating, based on how "heavy" the meal was
-    // unsafe, but we can assume this dino with Pursue always has Awareness
     addComponent(world, Stunned, id)
     Stunned.duration[id] = targetDino.dominance * 5
-  }
-
-  // move closer
-  // TODO move this over from dino.ts after moving flee
-  // if a dino or lava got in the way, wait for next pass
-  if (isValidPosition(target, world.level)) {
-    selfDino.moveTo(target)
-    Path.advance(id)
-  }
-
-  // "hone in" more accurately when closer (by observing every turn)
-  // Makes dino go where target is, not where it was
-  // NOTE this makes the dino more aware of all factors, not just the target
-  if (Path.length(id) < 5) {
-    // unsafe, but we can assume this dino with Pursue always has Awareness
-    // TODO use path system to update path and change frequency on that
-    // Awareness.frequencyModifier[id] = -99
     return
   }
 
+  // move closer (if able)
+  if (isValidPosition(nextCoord, world.level)) {
+    selfDino.moveTo(nextCoord)
+    Path.advance(id)
+    return
+  }
 }
+
+let xy = new XY(0, 0)
+function _calculatePath(selfDino: Dino, target: Dino) {
+  Path.init(selfDino.id)
+  var passableCallback = (x, y) => {
+    xy.x = x
+    xy.y = y
+    // only want to check terrain when making a path (to avoid expensive pathfinding)
+    // when following the path we MUST make sure it is valid (since the terrain or dino positions can change)
+    return isValidTerrain(xy, selfDino.getLevel());
+  }
+
+  // uses 8-direction for paths to get diagonals
+  var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback);
+
+  astar.compute(selfDino.getXY().x, selfDino.getXY().y, (x, y) => {
+    Path.push(selfDino.id, x, y)
+  });
+  // index 0 is current position, so set focus on the next step
+  Path.advance(selfDino.id)
+}
+
 
 const dangerSource = new XY()
 function _handleFlee(world: ECSWorld, id: number) {
@@ -123,7 +167,7 @@ function _handleFlee(world: ECSWorld, id: number) {
   let oppositeDirection = (directionOfThreat + 2) % 4
   let escape = selfDino.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))
   if (isValidPosition(escape, world.level)) {
-    if (isValidPosition(escape, world.level)) selfDino.moveTo(escape)
+    selfDino.moveTo(escape)
   } else {
     // try to go adjacent
     let adjacent = ROT.DIRS[4][Math.abs(oppositeDirection + ROT.RNG.getItem([1, -1])!) % 4]

@@ -427,11 +427,9 @@ export default class MainLevel {
 
       addComponent(this.ecsWorld, Awareness, id)
       Awareness.range[id] = 30
-      Awareness.turnsSinceLastObserve[id] = 0
       Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
 
       addComponent(this.ecsWorld, Movement, id)
-      Movement.turnsSinceLastMove[id] = 0
       Movement.frequency[id] = NUM_DINO_LEVELS - dominance
 
       // TODO keep adding components
