@@ -45,7 +45,7 @@ export default function awarenessSystem(world: ECSWorld) {
 
     // check for predators
     for (let predator of sortedNearestDinos) {
-      if (predator.id === d.id) continue
+      if (predator.id === d.id || predator.dead) continue
       let dist = selfDino.getXY().dist(predator.getXY())
       if (dist > 20) break // none were close
 
@@ -63,6 +63,7 @@ export default function awarenessSystem(world: ECSWorld) {
     // check for prey
     let target;
     for (let prey of sortedNearestDinos) {
+      if (prey.id === d.id || prey.dead) continue
       debugLog(selfDino.id, "considering", prey.id)
       // find first viable dino in observation range
       const dist = selfDino.getXY().dist(prey.getXY())

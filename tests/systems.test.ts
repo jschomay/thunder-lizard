@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { Awareness, Flee, Pursue } from '../src/components';
-import { addComponent, addEntity, createWorld, hasComponent, removeComponent } from 'bitecs';
+import { addComponent, addEntity, createWorld, hasComponent, removeComponent, removeEntity } from 'bitecs';
 
 test('removing component behavior', () => {
   const world = createWorld()
@@ -15,4 +15,8 @@ test('removing component behavior', () => {
   removeComponent(world, Awareness, eid)
   // default still exists for eid after removed
   expect(Awareness.turnsToSkip[eid]).toBe(0)
+
+  expect(hasComponent(world, Awareness, eid)).toBe(false)
+  removeEntity(world, eid)
+  expect(hasComponent(world, Awareness, eid)).toBe(false)
 })

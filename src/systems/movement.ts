@@ -3,7 +3,8 @@ import {
   defineQuery,
   hasComponent,
   Not,
-  removeComponent
+  removeComponent,
+  removeEntity
 } from 'bitecs'
 
 import * as ROT from '../../lib/rotjs'
@@ -116,9 +117,12 @@ function _handlePursue(world: ECSWorld, id: number) {
   // reached target
   if (nextCoord.is(targetDino.getXY())) {
     debugLog(selfDino.id, "reached prey", targetDino.id)
-    world.level.dinos.remove(targetDino)
+
+    // TODO maybe remove all components instead and add carcass component?
+    removeEntity(world, targetId)
+    targetDino.dead = true
+
     removePursue(world, id)
-    // TODO add carcass
     // rest after eating, based on how "heavy" the meal was
     addComponent(world, Stunned, id)
     Stunned.duration[id] = targetDino.dominance * 5

@@ -4,6 +4,7 @@ import XY from "../xy";
 import Level from "../level";
 
 const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
+const colors = ROT.RNG.shuffle(["red", "brown", "lightgreen", "green", "gray", "orange"])
 
 export type dinoKind = "PREDATOR" | "HERBIVORE" | "SCAVENGER"
 
@@ -11,6 +12,7 @@ export default class Dino extends Entity {
   id: number
   dominance: number
   kind: dinoKind
+  dead = false
 
 
   constructor(level: Level, xy: XY, id: number, dominance: number, kind: dinoKind) {
@@ -21,7 +23,9 @@ export default class Dino extends Entity {
   }
 
   getVisual() {
-    return { ...super.getVisual(), ch: dinoCharMap[this.dominance - 1] }
+    return this.dead
+      ? { ...super.getVisual(), ch: "%", fg: "lightgrey" }
+      : { ...super.getVisual(), ch: dinoCharMap[this.dominance - 1], fg: colors[this.dominance - 1] }
   }
 
   getSpeed() {
