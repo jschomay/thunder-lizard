@@ -4,7 +4,6 @@ import Entity from "./entity";
 import { TerrainConstructor, Terrain as TerrainClass } from "./entities/terrain";
 import XY from "./xy";
 import Game from "./game";
-import Player from "./entities/player";
 import TextBuffer from "./textbuffer"
 import { Color } from "../lib/rotjs";
 import * as ROT from "../lib/rotjs";
@@ -18,9 +17,10 @@ import { MAP_SIZE, NUM_DINO_LEVELS, NUM_DINOS } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
 import { createWorld, addEntity, IWorld, addComponent, hasComponent } from "bitecs";
-import { Awareness, Movement, Pursue } from "./components";
-import movementSystem from "./systems/movement";
+import { Awareness, Controlled, Movement, Pursue } from "./components";
+import movementSystem, { keypressCb as movementKeypressCb } from "./systems/movement";
 import Path from "./systems/path";
+import { isValidPosition } from "./utils";
 
 export interface ECSWorld extends IWorld {
   level: MainLevel;
@@ -28,30 +28,37 @@ export interface ECSWorld extends IWorld {
 
 
 export default class MainLevel {
-  private _viewportSize: XY;
-  private _viewportOffset: XY;
-  private _fovCells: XY[] = []
+  viewportSize: XY;
+  viewportOffset: XY;
   map: WorldMap
   dinos: Dinos
   scheduler: Scheduler;
   textBuffer: TextBuffer;
+  playerId: number
+  playerDino: Dino
   game: Game
-  player: Player
   ecsWorld: ECSWorld
   paused: null | ((value: any) => void) = null // pause check and call to resume
   whenRunning: Promise<any> = Promise.resolve()
+  private _fovCells: XY[] = []
 
   constructor(game: Game) {
     this.game = game;
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
-    this._viewportSize = new XY(MAP_SIZE / 6, MAP_SIZE / 6);
-    this._viewportOffset = new XY(MAP_SIZE / 2, MAP_SIZE / 2);
+    this.viewportSize = new XY(MAP_SIZE / 6, MAP_SIZE / 6);
+    this.viewportOffset = new XY(MAP_SIZE / 2, MAP_SIZE / 2);
     this.scheduler = new ROT.Scheduler.Speed();
 
-    this.player = new Player(this, new XY(0, 0))
-
     this.ecsWorld = createWorld({ level: this })
+    this.playerId = addEntity(this.ecsWorld)
+    addComponent(this.ecsWorld, Controlled, this.playerId)
+    addComponent(this.ecsWorld, Movement, this.playerId)
+    Movement.frequency[this.playerId] = 0
+    let xy = new XY((MAP_SIZE + this.viewportSize.x) / 2, (MAP_SIZE + this.viewportSize.y) / 2)
+    this.playerDino = new Dino(this, xy, this.playerId, 0, "PREDATOR")
+    this.playerDino.setVisual({ ch: "𑿋", fg: "yellow" })
+    this.dinos.add(this.playerDino)
 
     this._generateMap();
     this._generateMobs();
@@ -67,8 +74,6 @@ export default class MainLevel {
     });
     this.textBuffer.clear();
 
-    // this.scheduler.add(this.player, true);
-
 
     if (DEBUG) {
       debug(this)
@@ -82,16 +87,16 @@ export default class MainLevel {
   waterLoop() {
     const tickTimeMs = 300
     const visible = new Rectangle({
-      x: this._viewportOffset.x,
-      y: this._viewportOffset.y,
-      width: this._viewportSize.x,
-      height: this._viewportSize.y
+      x: this.viewportOffset.x,
+      y: this.viewportOffset.y,
+      width: this.viewportSize.x,
+      height: this.viewportSize.y
     })
     const loop = () => {
-      visible.x = this._viewportOffset.x
-      visible.y = this._viewportOffset.y
-      visible.width = this._viewportSize.x
-      visible.height = this._viewportSize.y
+      visible.x = this.viewportOffset.x
+      visible.y = this.viewportOffset.y
+      visible.width = this.viewportSize.x
+      visible.height = this.viewportSize.y
       Animated.run(visible)
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
@@ -135,6 +140,7 @@ export default class MainLevel {
             // need to kil off dinos too
             let dino = this.dinos.at(l.getXY())
             if (dino) {
+              // TODO game over if player
               this.dinos.remove(dino)
             }
           }
@@ -155,7 +161,7 @@ export default class MainLevel {
   }
 
   async mainLoop() {
-    const tickTimeMs = 300
+    const tickTimeMs = 200
     const loop = () => {
       awarenessSystem(this.ecsWorld)
       movementSystem(this.ecsWorld)
@@ -194,22 +200,13 @@ export default class MainLevel {
       this.handlePause()
 
     } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-      this.move(e.key)
+      movementKeypressCb.call(this, e.key)
     }
-  }
-
-  move(dir: string) {
-    // TODO validate move
-    if (dir === "ArrowUp") this._viewportOffset.y--
-    if (dir === "ArrowDown") this._viewportOffset.y++
-    if (dir === "ArrowLeft") this._viewportOffset.x--
-    if (dir === "ArrowRight") this._viewportOffset.x++
-    this.drawMap()
   }
 
   handlePause() {
     let originalSize = this.getSize()
-    let originalOffset = this._viewportOffset
+    let originalOffset = this.viewportOffset
 
     if (this.paused) {
       this.paused(true)
@@ -220,16 +217,16 @@ export default class MainLevel {
       this.whenRunning = new Promise((resolve, reject) => this.paused = resolve)
       document.querySelector("#status")!.innerHTML = "PAUSED"
       document.querySelector("#status")!.classList.remove("hidden")
-      this._viewportSize = this.map.size
-      this._viewportOffset = new XY(0, 0)
+      this.viewportSize = this.map.size
+      this.viewportOffset = new XY(0, 0)
     }
 
     let size = this.getSize();
     this.game.display.setOptions({ width: size.x, height: size.y });
     this.drawMap()
 
-    this._viewportSize = originalSize
-    this._viewportOffset = originalOffset
+    this.viewportSize = originalSize
+    this.viewportOffset = originalOffset
   }
 
 
@@ -240,7 +237,7 @@ export default class MainLevel {
   draw(xyOrEntity: XY | Entity): void {
     let entity = xyOrEntity instanceof Entity ? xyOrEntity : this.map.at(xyOrEntity);
     if (!entity) throw new Error("No entity to draw for " + xyOrEntity.toString())
-    let { x, y } = entity.getXY().minus(this._viewportOffset)
+    let { x, y } = entity.getXY().minus(this.viewportOffset)
     let visual = entity.getVisual()
     let color = visual.fg
     let brightened = Color.toHex(Color.add(Color.fromString("#222"), Color.fromString(color)))
@@ -263,14 +260,14 @@ export default class MainLevel {
           for (let i = 2; i < (len - 2); i += 2) {
             x = Pursue.path[d.id][i]
             y = Pursue.path[d.id][i + 1]
-            this.game.display.drawOver(x - this._viewportOffset.x, y - this._viewportOffset.y, ".", "red")
+            this.game.display.drawOver(x - this.viewportOffset.x, y - this.viewportOffset.y, ".", "red")
           }
         }
       }
     }
   }
 
-  getSize() { return this._viewportSize; }
+  getSize() { return this.viewportSize; }
 
   updateFOV() {
     // clear old FOV
@@ -287,7 +284,7 @@ export default class MainLevel {
       // don't include player
       if (r === 0) return;
       // don't render over top and bottom display
-      if (y < 3 || y > this._viewportSize.y - 2) return;
+      if (y < 3 || y > this.viewportSize.y - 2) return;
 
       let xy = new XY(x, y)
       this._fovCells.push(xy);
@@ -301,10 +298,10 @@ export default class MainLevel {
 
   getViewport() {
     return {
-      x: this._viewportOffset.x,
-      y: this._viewportOffset.y,
-      w: this._viewportSize.x,
-      h: this._viewportSize.y
+      x: this.viewportOffset.x,
+      y: this.viewportOffset.y,
+      w: this.viewportSize.x,
+      h: this.viewportSize.y
     }
   }
 
@@ -418,6 +415,9 @@ export default class MainLevel {
     let validCoords: XY[] = terrainsWithMobs.flatMap(
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
+    const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
+    const colors = ROT.RNG.shuffle(["red", "brown", "lightgreen", "green", "gray", "orange"])
+
     ROT.RNG.shuffle(validCoords).slice(0, NUM_DINOS).forEach((xy, i) => {
       let dominance = i % NUM_DINO_LEVELS + 1
 
@@ -435,6 +435,7 @@ export default class MainLevel {
       // TODO keep adding components
       let d = new Dino(this, xy, id, dominance, "PREDATOR")
       this.dinos.add(d)
+      d.setVisual({ ch: dinoCharMap[dominance - 1], fg: colors[dominance - 1] })
     })
   }
 }

@@ -45,3 +45,12 @@ export const Pursue = defineComponent({
 export const Flee = defineComponent({
   source: [Types.i16, 2], // x,y of source of danger
 })
+
+
+/**
+ * Component for the player
+ * Holds pressed direction keys to control movement at the right speed
+ */
+export const Controlled = defineComponent({
+  pressed: Types.ui8, // byte array of keys on/off
+})

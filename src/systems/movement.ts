@@ -8,8 +8,8 @@ import {
 } from 'bitecs'
 
 import * as ROT from '../../lib/rotjs'
-import { ECSWorld } from '../level'
-import { Awareness, Flee, Movement, Pursue, Stunned } from '../components'
+import MainLevel, { ECSWorld } from '../level'
+import { Awareness, Controlled, Flee, Movement, Pursue, Stunned } from '../components'
 import { DEBUG, debugLog } from '../debug'
 import XY from '../xy'
 import Path from './path'
@@ -47,6 +47,8 @@ export function removeFlee(world: ECSWorld, id: number) {
  * Systems for pursuing and fleeing with account of speed
  */
 export default function movementSystem(world: ECSWorld) {
+  _handlePlayer(world)
+
   const pursueQuery = defineQuery([Movement, Pursue, Not(Stunned)])
   for (let eid of pursueQuery(world)) {
 
@@ -73,6 +75,47 @@ export default function movementSystem(world: ECSWorld) {
   return world
 }
 
+
+// Totally unnecessary byte array packing to hold multiple keys, but it's fun bitwise
+const DIRECTION_UP = parseInt('0001', 2);    // 1
+const DIRECTION_RIGHT = parseInt('0010', 2); // 2
+const DIRECTION_DOWN = parseInt('0100', 2);  // 4
+const DIRECTION_LEFT = parseInt('1000', 2);  // 8
+
+function _handlePlayer(world: ECSWorld) {
+  const eid = world.level.playerId
+  Movement.turnsSinceLastMove[eid] += 1
+  if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid]) {
+    return
+  }
+  Movement.turnsSinceLastMove[eid] = 0
+  let dir = [0, 0]
+  if ((DIRECTION_UP & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][0];
+  if ((DIRECTION_RIGHT & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][1];
+  if ((DIRECTION_DOWN & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][2];
+  if ((DIRECTION_LEFT & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][3];
+
+  Controlled.pressed[eid] = 0
+
+  let dirXY = new XY(...dir!)
+  const destination = world.level.playerDino.getXY().plus(dirXY)
+  // TODO check for eating dino
+  if (!isValidPosition(destination, world.level)) return
+  world.level.playerDino.moveTo(destination)
+  world.level.viewportOffset = world.level.viewportOffset.plus(dirXY)
+}
+
+export function keypressCb(this: MainLevel, dir: string) {
+  console.log("press", dir)
+
+  switch (dir) {
+    case "ArrowUp": Controlled.pressed[this.playerId] |= DIRECTION_UP; break;
+    case "ArrowRight": Controlled.pressed[this.playerId] |= DIRECTION_RIGHT; break;
+    case "ArrowDown": Controlled.pressed[this.playerId] |= DIRECTION_DOWN; break;
+    case "ArrowLeft": Controlled.pressed[this.playerId] |= DIRECTION_LEFT; break;
+    default: 0
+  }
+}
 
 
 function _handlePursue(world: ECSWorld, id: number) {
@@ -121,6 +164,7 @@ function _handlePursue(world: ECSWorld, id: number) {
     // TODO maybe remove all components instead and add carcass component?
     removeEntity(world, targetId)
     targetDino.dead = true
+    // TODO game over if player
 
     removePursue(world, id)
     // rest after eating, based on how "heavy" the meal was
