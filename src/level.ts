@@ -56,7 +56,7 @@ export default class MainLevel {
     addComponent(this.ecsWorld, Movement, this.playerId)
     Movement.frequency[this.playerId] = 0
     let xy = new XY((MAP_SIZE + this.viewportSize.x) / 2, (MAP_SIZE + this.viewportSize.y) / 2)
-    this.playerDino = new Dino(this, xy, this.playerId, 0, "PREDATOR")
+    this.playerDino = new Dino(this, xy, this.playerId, 3, "PREDATOR")
     this.playerDino.setVisual({ ch: "𑿋", fg: "yellow" })
     this.dinos.add(this.playerDino)
 
@@ -196,6 +196,9 @@ export default class MainLevel {
     if (this.textBuffer.showing && e.key === "Enter") {
       this.textBuffer.clearDisplayBox()
 
+    } else if (DEBUG && e.key.toLowerCase() === "d") {
+      this.handlePause(true)
+
     } else if (e.key.toLowerCase() === "p") {
       this.handlePause()
 
@@ -204,7 +207,7 @@ export default class MainLevel {
     }
   }
 
-  handlePause() {
+  handlePause(surpressZoom = false) {
     let originalSize = this.getSize()
     let originalOffset = this.viewportOffset
 
@@ -217,8 +220,10 @@ export default class MainLevel {
       this.whenRunning = new Promise((resolve, reject) => this.paused = resolve)
       document.querySelector("#status")!.innerHTML = "PAUSED"
       document.querySelector("#status")!.classList.remove("hidden")
-      this.viewportSize = this.map.size
-      this.viewportOffset = new XY(0, 0)
+      if (!surpressZoom) {
+        this.viewportSize = this.map.size
+        this.viewportOffset = new XY(0, 0)
+      }
     }
 
     let size = this.getSize();

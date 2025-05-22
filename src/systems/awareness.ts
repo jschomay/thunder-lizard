@@ -38,7 +38,7 @@ export default function awarenessSystem(world: ECSWorld) {
     // TODO handle scavengers
     const selfDino = world.level.dinos.get(d.id)
     if (!selfDino) continue
-    // TODO doesn't seem to get playerDino?
+
     const sortedNearestDinos = world.level.dinos.nearest(selfDino.getXY())
 
     // TODO use risk/reward zones instead
@@ -68,7 +68,7 @@ export default function awarenessSystem(world: ECSWorld) {
       debugLog(selfDino.id, "considering", prey.id)
       // find first viable dino in observation range
       const dist = selfDino.getXY().dist(prey.getXY())
-      if (dist > Awareness.range[prey.id]) break // no prey in sight
+      if (dist > Awareness.range[d.id]) break // no prey in sight
       if (prey.dominance >= selfDino.dominance) continue
       behaviorSelected = true
       if (!target) {

@@ -106,8 +106,6 @@ function _handlePlayer(world: ECSWorld) {
 }
 
 export function keypressCb(this: MainLevel, dir: string) {
-  console.log("press", dir)
-
   switch (dir) {
     case "ArrowUp": Controlled.pressed[this.playerId] |= DIRECTION_UP; break;
     case "ArrowRight": Controlled.pressed[this.playerId] |= DIRECTION_RIGHT; break;
