@@ -91,17 +91,27 @@ function _handlePlayer(world: ECSWorld) {
     return
   }
   Movement.turnsSinceLastMove[eid] = 0
-  let dir = [0, 0]
+  let dir = null
   if ((DIRECTION_UP & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][0];
   if ((DIRECTION_RIGHT & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][1];
   if ((DIRECTION_DOWN & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][2];
   if ((DIRECTION_LEFT & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][3];
+
+  if (!dir) return
 
   Controlled.pressed[eid] = 0
 
   let dirXY = new XY(...dir!)
   const destination = world.level.playerDino.getXY().plus(dirXY)
   // TODO check for eating dino
+  let prey = world.level.dinos.at(destination)
+  if (prey) {
+    removeComponent(world, Movement, prey.id)
+    removeComponent(world, Awareness, prey.id)
+    removeComponent(world, Controlled, prey.id)
+    prey.dead = true
+    return
+  }
   if (!isValidPosition(destination, world.level)) return
   world.level.playerDino.moveTo(destination)
   world.level.viewportOffset = world.level.viewportOffset.plus(dirXY)
@@ -172,6 +182,7 @@ function _handlePursue(world: ECSWorld, id: number) {
     debugLog(selfDino.id, "reached prey", targetDino.id)
 
     // TODO add carcass component?
+    // TODO move this to a helper
     removeComponent(world, Movement, targetId)
     removeComponent(world, Awareness, targetId)
     removeComponent(world, Controlled, targetId)
