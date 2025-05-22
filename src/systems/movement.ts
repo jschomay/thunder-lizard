@@ -1,5 +1,6 @@
 import {
   addComponent,
+  addEntity,
   defineQuery,
   hasComponent,
   Not,
@@ -83,6 +84,7 @@ const DIRECTION_DOWN = parseInt('0100', 2);  // 4
 const DIRECTION_LEFT = parseInt('1000', 2);  // 8
 
 function _handlePlayer(world: ECSWorld) {
+  if (world.level.playerDino.dead) return
   const eid = world.level.playerId
   Movement.turnsSinceLastMove[eid] += 1
   if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid]) {
@@ -138,7 +140,7 @@ function _handlePursue(world: ECSWorld, id: number) {
 
   if (nextCoord.x === -1) {
     // means the path has run out
-    // TODO shouldn't happen, but sometimes it does, not quite sure how
+    // TODO I haven't seen this happe any more, likely safe to remove
     if (DEBUG) console.error("empty pursue path", id, targetId)
     removePursue(world, id)
     return
@@ -148,10 +150,20 @@ function _handlePursue(world: ECSWorld, id: number) {
 
   // path has diagonals, but dino can only move orthogonally
   // so move orthogonally but don't advance the path so that the next pass will also be orthogonal
-  let orthogonalTarget = selfDino.getXY().plus(new XY(...ROT.DIRS[4][relativePosition(selfDino.getXY(), nextCoord)]))
+  let relDir = relativePosition(selfDino.getXY(), nextCoord)
+  let orthogonalTarget = selfDino.getXY().plus(new XY(...ROT.DIRS[4][relDir]))
   if (!nextCoord.is(orthogonalTarget)) {
-    // if a dino or lava got in the way, wait for next pass
+    // find the first valid orthogonal position (4 in total to check)
+    let attempts = 0
+    while (!isValidPosition(orthogonalTarget, world.level) && attempts < 3) {
+      attempts++
+      relDir = (relDir + 1) % 4
+      orthogonalTarget = selfDino.getXY().plus(new XY(...ROT.DIRS[4][relDir]))
+    }
+    // TODO dino can still get stuck on lava, I may need to pathfind in 4 directions to get to a safe area
+    // but risk/reward system might fix this
     if (isValidPosition(orthogonalTarget, world.level)) selfDino.moveTo(orthogonalTarget)
+    _calculatePath(selfDino, targetDino)
     return
   }
 
@@ -159,8 +171,10 @@ function _handlePursue(world: ECSWorld, id: number) {
   if (nextCoord.is(targetDino.getXY())) {
     debugLog(selfDino.id, "reached prey", targetDino.id)
 
-    // TODO maybe remove all components instead and add carcass component?
-    removeEntity(world, targetId)
+    // TODO add carcass component?
+    removeComponent(world, Movement, targetId)
+    removeComponent(world, Awareness, targetId)
+    removeComponent(world, Controlled, targetId)
     targetDino.dead = true
     // TODO game over if player
 

@@ -47,7 +47,7 @@ export default class MainLevel {
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
     this.viewportSize = new XY(MAP_SIZE / 6, MAP_SIZE / 6);
-    this.viewportOffset = new XY(MAP_SIZE / 2, MAP_SIZE / 2);
+    this.viewportOffset = new XY(MAP_SIZE / 3, MAP_SIZE / 3);
     this.scheduler = new ROT.Scheduler.Speed();
 
     this.ecsWorld = createWorld({ level: this })
@@ -55,7 +55,7 @@ export default class MainLevel {
     addComponent(this.ecsWorld, Controlled, this.playerId)
     addComponent(this.ecsWorld, Movement, this.playerId)
     Movement.frequency[this.playerId] = 0
-    let xy = new XY((MAP_SIZE + this.viewportSize.x) / 2, (MAP_SIZE + this.viewportSize.y) / 2)
+    let xy = new XY(this.viewportOffset.x + this.viewportSize.x / 2, this.viewportOffset.y + this.viewportSize.y / 2)
     this.playerDino = new Dino(this, xy, this.playerId, 3, "PREDATOR")
     this.playerDino.setVisual({ ch: "𑿋", fg: "yellow" })
     this.dinos.add(this.playerDino)
@@ -421,7 +421,7 @@ export default class MainLevel {
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
     const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
-    const colors = ROT.RNG.shuffle(["red", "brown", "lightgreen", "green", "gray", "orange"])
+    const colors = ROT.RNG.shuffle(["red", "brown", "lightgreen", "purple", "gray", "orange"])
 
     ROT.RNG.shuffle(validCoords).slice(0, NUM_DINOS).forEach((xy, i) => {
       let dominance = i % NUM_DINO_LEVELS + 1
