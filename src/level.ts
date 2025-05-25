@@ -13,7 +13,7 @@ import { DEBUG, debug } from "./debug";
 import Dino from "./entities/dino";
 import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
-import { MAP_SIZE, NUM_DINO_LEVELS, NUM_DINOS } from "./constants";
+import { MAP_SIZE, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
 import { createWorld, addEntity, IWorld, addComponent, hasComponent } from "bitecs";
@@ -46,7 +46,7 @@ export default class MainLevel {
     this.game = game;
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
-    this.viewportSize = new XY(MAP_SIZE / 6, MAP_SIZE / 6);
+    this.viewportSize = new XY(VIEWPORT_SIZE, VIEWPORT_SIZE);
     this.viewportOffset = new XY(MAP_SIZE / 3, MAP_SIZE / 3);
     this.scheduler = new ROT.Scheduler.Speed();
 

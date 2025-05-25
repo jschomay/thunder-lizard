@@ -10,7 +10,7 @@ export default class Game {
   _container: HTMLElement
 
   constructor() {
-    const scalar = 100
+    const scalar = 50
     let fontSize = window.innerWidth / scalar;
     window.addEventListener("resize", () => {
       fontSize = window.innerWidth / scalar;

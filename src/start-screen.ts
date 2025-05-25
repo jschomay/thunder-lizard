@@ -7,7 +7,7 @@ import WorldMap from "./map";
 import { RNG } from "../lib/rotjs";
 import Entity from "./entity";
 
-const [W, H] = [140, 70]
+const [W, H] = [80, 55]
 
 export default class StartScreen {
 
@@ -102,8 +102,8 @@ export default class StartScreen {
 
   _drawMap() {
     let titleMap = this._levelData.split("\n")
-    let titleOffsetY = 15
-    let titleOffsetX = 13
+    let titleOffsetX = Math.ceil((this.size.x - titleMap[0].length ) / 2)
+    let titleOffsetY = 13
     for (let row = 0; row < this.size.y; row++) {
       for (let col = 0; col < this.size.x; col++) {
         let bg = this.bgMap.at(col, row)!
