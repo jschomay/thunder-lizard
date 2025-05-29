@@ -1,11 +1,14 @@
 import {
-  hasComponent,
+  defineQuery,
+  Not,
   removeComponent
 } from 'bitecs'
 import { ECSWorld } from '../level'
 import { Awareness, Pursue, Stunned } from '../components'
 import { debugLog } from '../debug'
 import { removePursue, removeFlee, addPursue, addFlee } from './movement'
+import * as ROT from '../../lib/rotjs'
+import Dino from '../entities/dino'
 
 
 
@@ -13,30 +16,28 @@ import { removePursue, removeFlee, addPursue, addFlee } from './movement'
  * Queries surroundings and potentially changes behavior
  */
 export default function awarenessSystem(world: ECSWorld) {
-  const dinos = world.level.dinos.withIn(world.level.getViewport())
-  for (let d of dinos) {
-    if (!hasComponent(world, Awareness, d.id)) continue
+  const stunQuery = defineQuery([Stunned])
 
-    // TODO change to query [Awareness, NOT(Stunned)]
-    // and decrement stun as separate system
-    if (hasComponent(world, Stunned, d.id)) {
-      Stunned.duration[d.id] -= 1
-      if (Stunned.duration[d.id] <= 0) removeComponent(world, Stunned, d.id)
+  for (let eid of stunQuery(world)) {
+    Stunned.duration[eid] -= 1
+    if (Stunned.duration[eid] <= 0) removeComponent(world, Stunned, eid)
+  }
+
+
+  const awarenessQuery = defineQuery([Awareness, Not(Stunned)])
+  for (let eid of awarenessQuery(world)) {
+    Awareness.turnsSinceLastObserve[eid] += 1
+    if (Awareness.turnsSinceLastObserve[eid] <= Awareness.turnsToSkip[eid]) {
+      debugLog(eid, "cooldown", Awareness.turnsSinceLastObserve[eid], "until", Awareness.turnsToSkip[eid])
       continue
     }
-
-    Awareness.turnsSinceLastObserve[d.id] += 1
-    if (Awareness.turnsSinceLastObserve[d.id] <= Awareness.turnsToSkip[d.id]) {
-      debugLog(d.id, "cooldown", Awareness.turnsSinceLastObserve[d.id], "until", Awareness.turnsToSkip[d.id])
-      continue
-    }
-    Awareness.turnsSinceLastObserve[d.id] = 0
-    debugLog(d.id, "------------------")
+    Awareness.turnsSinceLastObserve[eid] = 0
+    debugLog(eid, "------------------")
 
     // TODO check for lava
     // TODO handle roaming
     // TODO handle scavengers
-    const selfDino = world.level.dinos.get(d.id)
+    const selfDino = world.level.dinos.get(eid)
     if (!selfDino) continue
 
     const sortedNearestDinos = world.level.dinos.nearest(selfDino.getXY())
@@ -46,15 +47,15 @@ export default function awarenessSystem(world: ECSWorld) {
 
     // check for predators
     for (let predator of sortedNearestDinos) {
-      if (predator.id === d.id || predator.dead) continue
+      if (predator.id === eid || predator.dead) continue
       let dist = selfDino.getXY().dist(predator.getXY())
       if (dist > 20) break // none were close
 
       if (predator.dominance > selfDino.dominance) {
         // run away
-        debugLog(d.id, "running from", predator.id)
-        removePursue(world, d.id)
-        addFlee(world, d.id, predator)
+        debugLog(eid, "running from", predator.id)
+        removePursue(world, eid)
+        addFlee(world, eid, predator)
         behaviorSelected = true
       }
     }
@@ -64,11 +65,11 @@ export default function awarenessSystem(world: ECSWorld) {
     // check for prey
     let target;
     for (let prey of sortedNearestDinos) {
-      if (prey.id === d.id || prey.dead) continue
+      if (prey.id === eid || prey.dead) continue
       debugLog(selfDino.id, "considering", prey.id)
       // find first viable dino in observation range
       const dist = selfDino.getXY().dist(prey.getXY())
-      if (dist > Awareness.range[d.id]) break // no prey in sight
+      if (dist > Awareness.range[eid]) break // no prey in sight
       if (prey.dominance >= selfDino.dominance) continue
       behaviorSelected = true
       if (!target) {
@@ -99,4 +100,13 @@ export default function awarenessSystem(world: ECSWorld) {
   }
 
   return world
+}
+
+function calculateRiskReward(d: Dino) {
+  var fov = new ROT.FOV.RecursiveShadowcasting(() => true);
+  const scores = [0, 2, 4, 6].map(dir => {
+    fov.compute90(d.getXY().x, d.getXY().y, 15, dir, (x, y, r, visibility) => {
+      // check x,y
+    });
+  })
 }
