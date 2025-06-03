@@ -43,7 +43,7 @@ export const Pursue = defineComponent({
  * flee
  */
 export const Flee = defineComponent({
-  source: [Types.i16, 2], // x,y of source of danger
+  source: Types.ui8, // rotjs DIR to run from
 })
 
 

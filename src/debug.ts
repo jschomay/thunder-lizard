@@ -22,10 +22,10 @@ export function debug(level: MainLevel) {
     let terrain = level.map.at(xy)
     let dino = level.dinos.at(xy)
     if (dino) {
-      console.log(dino, getEntityComponents(level.ecsWorld, dino.id).reduce((acc, c) => {
-        let componentClassName = c.constructor.name
-        return acc[componentClassName] = [...Object.entries(c).flatMap(([k, v]) => [k, v[dino.id]])]
-      }, {}))
+      console.log(dino, getEntityComponents(level.ecsWorld, dino.id).reduce((acc: any[], c) => {
+        acc.push(Object.entries(c).flatMap(([k, v]) => `${k}: ${v[dino.id]}`).join(", "))
+        return acc
+      }, []))
     } else if (terrain) {
       console.log(terrain)
     }
@@ -35,6 +35,10 @@ export function debug(level: MainLevel) {
   })
 }
 
+export function debugLogNoisy(...args: any[]) {
+  if (DEBUG >= 2) console.log(...args)
+}
+
 export function debugLog(...args: any[]) {
-  if (DEBUG > 1) console.log(...args)
+  if (DEBUG >= 1) console.log(...args)
 }

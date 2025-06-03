@@ -272,6 +272,10 @@ export default class MainLevel {
     }
   }
 
+  getEntity(x: number, y: number) {
+    return this.dinos.at(x, y) || this.map.at(x, y)
+  }
+
   getSize() { return this.viewportSize; }
 
   updateFOV() {
@@ -428,14 +432,14 @@ export default class MainLevel {
 
       let id = addEntity(this.ecsWorld)
 
-      const BASE_OBSERVE_FREQUENCY = 5
+      const BASE_OBSERVE_FREQUENCY = 3
 
       addComponent(this.ecsWorld, Awareness, id)
-      Awareness.range[id] = 30
+      Awareness.range[id] = 10
       Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
 
       addComponent(this.ecsWorld, Movement, id)
-      Movement.frequency[id] = NUM_DINO_LEVELS - dominance
+      Movement.frequency[id] = 0 //NUM_DINO_LEVELS - dominance
 
       // TODO keep adding components
       let d = new Dino(this, xy, id, dominance, "PREDATOR")

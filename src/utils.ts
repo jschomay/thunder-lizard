@@ -1,6 +1,7 @@
 import * as Terrain from "./entities/terrain";
 import MainLevel from "./level";
 import XY from "./xy";
+import { Bounds } from '../src/dinos.ts'
 
 /**
  * Returns the degrees between two points in terms of a compass
@@ -83,3 +84,10 @@ export function isValidTerrain(xy: XY, level: MainLevel) {
     && !(t instanceof Terrain.Lava)
 }
 
+
+/**
+  * In bounds, exclusive
+  */
+export function withIn(bounds: Bounds, x: number, y: number) {
+  return x >= bounds.x && x <= bounds.x + bounds.w && y >= bounds.y && y <= bounds.y + bounds.h
+}

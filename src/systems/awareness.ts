@@ -1,14 +1,19 @@
 import {
   defineQuery,
+  hasComponent,
   Not,
   removeComponent
 } from 'bitecs'
 import { ECSWorld } from '../level'
 import { Awareness, Pursue, Stunned } from '../components'
-import { debugLog } from '../debug'
+import { debugLog, debugLogNoisy } from '../debug'
 import { removePursue, removeFlee, addPursue, addFlee } from './movement'
 import * as ROT from '../../lib/rotjs'
 import Dino from '../entities/dino'
+import { relativePosition, withIn } from '../utils'
+import * as Terrain from '../entities/terrain'
+import XY from '../xy'
+import { MAP_SIZE } from '../constants'
 
 
 
@@ -26,87 +31,143 @@ export default function awarenessSystem(world: ECSWorld) {
 
   const awarenessQuery = defineQuery([Awareness, Not(Stunned)])
   for (let eid of awarenessQuery(world)) {
+    const selfDino = world.level.dinos.get(eid)
+    if (!selfDino) continue
+    if (!withIn(world.level.getViewport(), selfDino.getXY().x, selfDino.getXY().y)) continue
+
     Awareness.turnsSinceLastObserve[eid] += 1
     if (Awareness.turnsSinceLastObserve[eid] <= Awareness.turnsToSkip[eid]) {
-      debugLog(eid, "cooldown", Awareness.turnsSinceLastObserve[eid], "until", Awareness.turnsToSkip[eid])
+      debugLogNoisy(eid, "cooldown", Awareness.turnsSinceLastObserve[eid], "until", Awareness.turnsToSkip[eid])
       continue
     }
     Awareness.turnsSinceLastObserve[eid] = 0
     debugLog(eid, "------------------")
 
-    // TODO check for lava
-    // TODO handle roaming
-    // TODO handle scavengers
-    const selfDino = world.level.dinos.get(eid)
-    if (!selfDino) continue
+    removeFlee(world, selfDino.id)
 
-    const sortedNearestDinos = world.level.dinos.nearest(selfDino.getXY())
-
-    // TODO use risk/reward zones instead
-    let behaviorSelected = false
-
-    // check for predators
-    for (let predator of sortedNearestDinos) {
-      if (predator.id === eid || predator.dead) continue
-      let dist = selfDino.getXY().dist(predator.getXY())
-      if (dist > 20) break // none were close
-
-      if (predator.dominance > selfDino.dominance) {
-        // run away
-        debugLog(eid, "running from", predator.id)
-        removePursue(world, eid)
-        addFlee(world, eid, predator)
-        behaviorSelected = true
-      }
+    let overrideScore = 0
+    let foundPrey = null
+    if (hasComponent(world, Pursue, selfDino.id)) {
+      overrideScore = 3
+    } else if (selfDino.kind === "PREDATOR") {
+      foundPrey = detectPrey(world.level.dinos.nearest(selfDino.getXY()), selfDino)
+      if (foundPrey) overrideScore = 3
     }
-    if (behaviorSelected) continue
 
+    const scores = surveyQuadrants(selfDino, world)
 
-    // check for prey
-    let target;
-    for (let prey of sortedNearestDinos) {
-      if (prey.id === eid || prey.dead) continue
-      debugLog(selfDino.id, "considering", prey.id)
-      // find first viable dino in observation range
-      const dist = selfDino.getXY().dist(prey.getXY())
-      if (dist > Awareness.range[eid]) break // no prey in sight
-      if (prey.dominance >= selfDino.dominance) continue
-      behaviorSelected = true
-      if (!target) {
-        target = prey
-        continue
+    // TODO use debug
+    debugLog("scores for", eid, scores, overrideScore)
+
+    if (overrideScore >= Math.max(...scores.map(Math.abs))) {
+      if (foundPrey) {
+        debugLog(selfDino.id, "going to pursue", foundPrey.id)
+        addPursue(world, selfDino.id, foundPrey)
       }
 
-      // look for next best target, stop looking if not found
-      let score = 0
-      if (prey.dominance > target.dominance) {
-        score += prey.dominance - target.dominance
-      }
-      score -= Math.floor(prey.getXY().dist(target.getXY()) / 2)
-      if (score > 0) {
-        target = prey
-        debugLog(selfDino.id, "found better option", target.id)
+    } else {
+      removePursue(world, selfDino.id)
+      const highestScoringDir = scores.reduce(([high, i], curV, curI) => Math.abs(curV) > Math.abs(high) ? [curV, curI] : [high, i], [0, 0])[1]
+      // NOTE do something random if score is 0?
+      const dirScore = scores[highestScoringDir]
+      if (dirScore < 0) {
+        addFlee(world, selfDino.id, highestScoringDir)
+        debugLog(selfDino.id, "going to flee", highestScoringDir)
       } else {
-        debugLog(selfDino.id, "stopping search")
-        break
+        // NOTE maybe add a Roam component or something other than Flee for a better tag
+        let oppositeDirection = (highestScoringDir + 2) % 4
+        addFlee(world, selfDino.id, oppositeDirection)
+        debugLog(selfDino.id, "going to wander", highestScoringDir)
       }
     }
-    if (target) {
-      debugLog(selfDino.id, "going to pursue", target.id)
-      removeFlee(world, selfDino.id)
-      addPursue(world, selfDino.id, target)
-    }
-    if (behaviorSelected) continue
-  }
 
-  return world
+    return world
+  }
+}
+function surveyQuadrants(self: Dino, world: ECSWorld) {
+  // NOTE Recursive shadow casting would be better, better but it doubles up on the 45° lines
+  // could do a unique check, but PreciseShadowcasting works just fine (hit range is a square not a circle but that's ok)
+  const range = Awareness.range[self.id]
+  if (range > 20) throw new Error(self.id + " Awareness range too high" + range)
+  let dirScores = [0, 0, 0, 0]
+  let dir = 0
+  const fov = new ROT.FOV.PreciseShadowcasting(() => true);
+  fov.compute(self.getXY().x, self.getXY().y, range, (x, y, r, v) => {
+    // TODO take account of Awareness.accuracy and camouflage
+    if (x < 0 || y < 0 || x >= MAP_SIZE || y >= MAP_SIZE) return
+    const other = world.level.getEntity(x, y)!
+    if (other === self) return
+    dir = relativePosition(self.getXY(), other.getXY())
+
+    if (other instanceof Dino) {
+      if ((other.kind = "PREDATOR") && other.dominance > self.dominance) {
+        // NOTE can weight danger level based on dino type
+        dirScores[dir] += -1 * proximityMultiplier(self.getXY(), other.getXY())
+      }
+
+      // TODO use terriorial and herding / pack hunting tags instead
+      if (self.kind === "PREDATOR") {
+        if (other.dominance === self.dominance) {
+          // territorial
+          dirScores[dir] += -2
+        }
+      }
+
+      if (self.kind === "HERBIVORE") {
+        if (other.dominance === self.dominance) {
+          // herding
+        }
+      }
+
+
+    } else if (other instanceof Terrain.Lava) {
+      // small because lava comes in groups
+      dirScores[dir] += -0.3 * proximityMultiplier(self.getXY(), other.getXY())
+
+    } else if (other instanceof Terrain.Terrain) {
+      // preferred terrain
+    }
+  });
+  return dirScores
 }
 
-function calculateRiskReward(d: Dino) {
-  var fov = new ROT.FOV.RecursiveShadowcasting(() => true);
-  const scores = [0, 2, 4, 6].map(dir => {
-    fov.compute90(d.getXY().x, d.getXY().y, 15, dir, (x, y, r, visibility) => {
-      // check x,y
-    });
-  })
+function detectPrey(sortedNearestDinos: Dino[], selfDino: Dino): Dino | null {
+  let target = null;
+  for (let prey of sortedNearestDinos) {
+    if (prey.id === selfDino.id || prey.dead) continue
+
+    debugLog(selfDino.id, "considering", prey.id)
+    // find first viable dino in observation range
+    const dist = selfDino.getXY().dist(prey.getXY())
+    // Predators have longer range when hunting
+    if (dist > Awareness.range[selfDino.id] * 2) break // no prey in sight
+    if (prey.dominance >= selfDino.dominance) continue
+    if (!target) {
+      target = prey
+      continue
+    }
+
+    // look for next best target, stop looking if not found
+    let score = 0
+    if (prey.dominance > target.dominance) {
+      score += prey.dominance - target.dominance
+    }
+    score -= Math.floor(prey.getXY().dist(target.getXY()) / 2)
+    if (score > 0) {
+      target = prey
+      debugLog(selfDino.id, "found better option", target.id)
+    } else {
+      debugLog(selfDino.id, "stopping search, going after", target.id)
+      break
+    }
+  }
+  return target
+}
+
+function proximityMultiplier(a: XY, b: XY): number {
+  const dist = a.dist(b)
+  if (dist <= 5) return 3
+  if (dist <= 7) return 2
+  return 1
+
 }

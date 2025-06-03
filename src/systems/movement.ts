@@ -1,11 +1,9 @@
 import {
   addComponent,
-  addEntity,
   defineQuery,
   hasComponent,
   Not,
   removeComponent,
-  removeEntity
 } from 'bitecs'
 
 import * as ROT from '../../lib/rotjs'
@@ -16,31 +14,33 @@ import XY from '../xy'
 import Path from './path'
 import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
-import Entity from '../entity'
 
 
+const pursueRangeReduction = 3
 export function addPursue(world: ECSWorld, id: number, other: Dino) {
   addComponent(world, Pursue, id)
   Pursue.target[id] = other.id
-  Awareness.range[id] -= 20
+  // NOTE be careful if this adjustment causes a negative range, as it will "wrap" (ui8)
+  Awareness.range[id] /= pursueRangeReduction
 }
 export function removePursue(world: ECSWorld, id: number) {
   if (hasComponent(world, Pursue, id)) {
     removeComponent(world, Pursue, id)
-    Awareness.range[id] += 20
+    Awareness.range[id] *= pursueRangeReduction
   }
 }
 
-export function addFlee(world: ECSWorld, id: number, other: Entity) {
+const fleeFrequencyReduction = 1.5
+export function addFlee(world: ECSWorld, id: number, dir: number) {
   addComponent(world, Flee, id)
-  Flee.source[id].set([other.getXY().x, other.getXY().y])
-  Awareness.turnsToSkip[id] += 5
+  Flee.source[id] = dir
+  Awareness.turnsToSkip[id] *= fleeFrequencyReduction
 }
 
 export function removeFlee(world: ECSWorld, id: number) {
   if (hasComponent(world, Flee, id)) {
     removeComponent(world, Flee, id)
-    Awareness.turnsToSkip[id] -= 5
+    Awareness.turnsToSkip[id] /= fleeFrequencyReduction
   }
 }
 
@@ -50,11 +50,13 @@ export function removeFlee(world: ECSWorld, id: number) {
 export default function movementSystem(world: ECSWorld) {
   _handlePlayer(world)
 
+  if (defineQuery([Flee, Pursue])(world).length > 0) console.error("Unexpectedly found dinos with Flee and Pursue!")
+
   const pursueQuery = defineQuery([Movement, Pursue, Not(Stunned)])
   for (let eid of pursueQuery(world)) {
 
     Movement.turnsSinceLastMove[eid] += 1
-    if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid]) {
+    if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid] + 1) {
       continue
     }
     Movement.turnsSinceLastMove[eid] = 0
@@ -226,17 +228,13 @@ function _calculatePath(selfDino: Dino, target: Dino) {
 }
 
 
-const dangerSource = new XY()
 function _handleFlee(world: ECSWorld, id: number) {
   debugLog(id, "fleeing")
   const selfDino = world.level.dinos.get(id)
   if (!selfDino) return
 
-  dangerSource.x = Flee.source[id][0]
-  dangerSource.y = Flee.source[id][1]
-
-  let directionOfThreat = relativePosition(selfDino.getXY(), dangerSource)
-  let oppositeDirection = (directionOfThreat + 2) % 4
+  let dir = Flee.source[id]
+  let oppositeDirection = (dir + 2) % 4
   let escape = selfDino.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))
   if (isValidPosition(escape, world.level)) {
     selfDino.moveTo(escape)
