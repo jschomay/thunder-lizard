@@ -72,4 +72,6 @@ export default class Dinos {
       return x >= bounds.x && x <= bounds.x + bounds.w && y >= bounds.y && y <= bounds.y + bounds.h
     })
   }
+
+  size() { return this._ids.size }
 }

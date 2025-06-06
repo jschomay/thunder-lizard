@@ -9,8 +9,8 @@ import { Color } from "../lib/rotjs";
 import * as ROT from "../lib/rotjs";
 import * as Terrain from "./entities/terrain";
 import WorldMap from "./map";
-import { DEBUG, debug } from "./debug";
-import Dino from "./entities/dino";
+import { DEBUG, debug, debugLog } from "./debug";
+import Dino, { dinoKind } from "./entities/dino";
 import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
 import { MAP_SIZE, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
@@ -427,24 +427,65 @@ export default class MainLevel {
     const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
     const colors = ROT.RNG.shuffle(["red", "brown", "lightgreen", "purple", "gray", "orange"])
 
-    ROT.RNG.shuffle(validCoords).slice(0, NUM_DINOS).forEach((xy, i) => {
-      let dominance = i % NUM_DINO_LEVELS + 1
+    // TODO on dino gen still:
+    // ~1 of each kind can have herding/pack hunting tag
+    // ~1 of carnivores can be territorial
+    // other traits should be added randomly to each group
 
-      let id = addEntity(this.ecsWorld)
+    const BASE_OBSERVE_FREQUENCY = 3
+    const BASE_OBSERVE_RANGE = 10
+    const DEFAULT_MOVEMENT_FREQUENCY = 1
+    const selectedCoords = ROT.RNG.shuffle(validCoords).slice(0, NUM_DINOS)
+    const kinds: dinoKind[] = ROT.RNG.shuffle(["HERBIVORE", "HERBIVORE", "HERBIVORE", "PREDATOR", "PREDATOR"])
 
-      const BASE_OBSERVE_FREQUENCY = 3
+    const countsPerLevel = (new Array(NUM_DINO_LEVELS)).fill(0)
+      .map((_, i) => 0.5 + i / (NUM_DINO_LEVELS - 1))
+      .map(n => Math.floor(n * NUM_DINOS / NUM_DINO_LEVELS))
 
-      addComponent(this.ecsWorld, Awareness, id)
-      Awareness.range[id] = 10
-      Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
+    const generatePerLevel = (level: number, populationRemaining: number) => {
+      let kind: dinoKind = kinds.pop()!
+      // keep kinds full, just rotate
+      kinds.push(kind)
 
-      addComponent(this.ecsWorld, Movement, id)
-      Movement.frequency[id] = 0 //NUM_DINO_LEVELS - dominance
+      let numInLevel = countsPerLevel.shift()!
+      if (level === NUM_DINO_LEVELS) {
+        // alpha predator
+        numInLevel = Math.floor(numInLevel / 2)
+        kind = "PREDATOR"
 
-      // TODO keep adding components
-      let d = new Dino(this, xy, id, dominance, "PREDATOR")
-      this.dinos.add(d)
-      d.setVisual({ ch: dinoCharMap[dominance - 1], fg: colors[dominance - 1] })
-    })
+      } else if (level === 1) {
+        // bottom of the food chain (non-predator)
+        numInLevel = populationRemaining
+        kind = "HERBIVORE"
+
+      } else {
+        // in between dinos
+      }
+
+      const makeDino = () => {
+        let id = addEntity(this.ecsWorld)
+        addComponent(this.ecsWorld, Awareness, id)
+        Awareness.range[id] = BASE_OBSERVE_RANGE
+        Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
+
+        addComponent(this.ecsWorld, Movement, id)
+        Movement.frequency[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
+
+        // TODO keep adding components
+
+        const position = selectedCoords.pop()!
+        let d = new Dino(this, position, id, level, kind)
+        this.dinos.add(d)
+        d.setVisual({ ch: dinoCharMap[level - 1], fg: colors[level - 1] })
+      }
+
+      for (let i = 0; i < numInLevel; i++) { makeDino() }
+
+      debugLog("Generated", numInLevel, "dinosaurs at level", level, "of kind", kind)
+
+      if (level > 1) generatePerLevel(level - 1, populationRemaining - numInLevel)
+    }
+
+    generatePerLevel(NUM_DINO_LEVELS, NUM_DINOS)
   }
 }
