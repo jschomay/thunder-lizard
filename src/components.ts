@@ -54,3 +54,7 @@ export const Flee = defineComponent({
 export const Controlled = defineComponent({
   pressed: Types.ui8, // byte array of keys on/off
 })
+
+export const Herding = defineComponent({ herding: Types.ui8 })
+
+export const Territorial = defineComponent({ territorial: Types.ui8 })

@@ -16,8 +16,8 @@ import { Rectangle } from "@timohausmann/quadtree-ts";
 import { MAP_SIZE, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
-import { createWorld, addEntity, IWorld, addComponent, hasComponent } from "bitecs";
-import { Awareness, Controlled, Movement, Pursue } from "./components";
+import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentType } from "bitecs";
+import { Awareness, Controlled, Herding, Movement, Pursue, Territorial } from "./components";
 import movementSystem, { keypressCb as movementKeypressCb } from "./systems/movement";
 import Path from "./systems/path";
 import { isValidPosition } from "./utils";
@@ -426,12 +426,6 @@ export default class MainLevel {
 
     const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
     const colors = ROT.RNG.shuffle(["red", "brown", "lightgreen", "purple", "gray", "orange"])
-
-    // TODO on dino gen still:
-    // ~1 of each kind can have herding/pack hunting tag
-    // ~1 of carnivores can be territorial
-    // other traits should be added randomly to each group
-
     const BASE_OBSERVE_FREQUENCY = 3
     const BASE_OBSERVE_RANGE = 10
     const DEFAULT_MOVEMENT_FREQUENCY = 1
@@ -442,12 +436,27 @@ export default class MainLevel {
       .map((_, i) => 0.5 + i / (NUM_DINO_LEVELS - 1))
       .map(n => Math.floor(n * NUM_DINOS / NUM_DINO_LEVELS))
 
-    const generatePerLevel = (level: number, populationRemaining: number) => {
-      let kind: dinoKind = kinds.pop()!
-      // keep kinds full, just rotate
-      kinds.push(kind)
+    const makeDino = (level: number, kind: dinoKind, tags: ComponentType<any>[]) => {
+      let id = addEntity(this.ecsWorld)
+      addComponent(this.ecsWorld, Awareness, id)
+      Awareness.range[id] = BASE_OBSERVE_RANGE
+      Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
 
+      addComponent(this.ecsWorld, Movement, id)
+      Movement.frequency[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
+
+      for (let tag of tags) { addComponent(this.ecsWorld, tag, id) }
+
+      // TODO keep adding components
+
+      const position = selectedCoords.pop()!
+      let d = new Dino(this, position, id, level, kind)
+      this.dinos.add(d)
+      d.setVisual({ ch: dinoCharMap[level - 1], fg: colors[level - 1] })
+    }
+    const generatePerLevel = (level: number, populationRemaining: number) => {
       let numInLevel = countsPerLevel.shift()!
+      let kind: dinoKind = "PREDATOR"
       if (level === NUM_DINO_LEVELS) {
         // alpha predator
         numInLevel = Math.floor(numInLevel / 2)
@@ -460,28 +469,18 @@ export default class MainLevel {
 
       } else {
         // in between dinos
+        kind = kinds.shift()!
+        kinds.push(kind)
+
       }
 
-      const makeDino = () => {
-        let id = addEntity(this.ecsWorld)
-        addComponent(this.ecsWorld, Awareness, id)
-        Awareness.range[id] = BASE_OBSERVE_RANGE
-        Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
+      const tags: ComponentType<any>[] = []
+      const chance = ROT.RNG.getPercentage()
+      if (chance < 20) { tags.push(Territorial) }
+      if (chance > 88) { tags.push(Herding) }
 
-        addComponent(this.ecsWorld, Movement, id)
-        Movement.frequency[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
-
-        // TODO keep adding components
-
-        const position = selectedCoords.pop()!
-        let d = new Dino(this, position, id, level, kind)
-        this.dinos.add(d)
-        d.setVisual({ ch: dinoCharMap[level - 1], fg: colors[level - 1] })
-      }
-
-      for (let i = 0; i < numInLevel; i++) { makeDino() }
-
-      debugLog("Generated", numInLevel, "dinosaurs at level", level, "of kind", kind)
+      for (let i = 0; i < numInLevel; i++) { makeDino(level, kind, tags) }
+      debugLog(`Generated ${numInLevel} dinosaurs at level ${level} of kind ${kind}`)
 
       if (level > 1) generatePerLevel(level - 1, populationRemaining - numInLevel)
     }

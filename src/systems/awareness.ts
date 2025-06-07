@@ -5,7 +5,7 @@ import {
   removeComponent
 } from 'bitecs'
 import { ECSWorld } from '../level'
-import { Awareness, Pursue, Stunned } from '../components'
+import { Awareness, Herding, Pursue, Stunned, Territorial } from '../components'
 import { debugLog, debugLogNoisy } from '../debug'
 import { removePursue, removeFlee, addPursue, addFlee } from './movement'
 import * as ROT from '../../lib/rotjs'
@@ -41,7 +41,7 @@ export default function awarenessSystem(world: ECSWorld) {
       continue
     }
     Awareness.turnsSinceLastObserve[eid] = 0
-    debugLog(eid, "------------------")
+    debugLogNoisy(eid, "------------------")
 
     removeFlee(world, selfDino.id)
 
@@ -57,11 +57,11 @@ export default function awarenessSystem(world: ECSWorld) {
     const scores = surveyQuadrants(selfDino, world)
 
     // TODO use debug
-    debugLog("scores for", eid, scores, overrideScore)
+    debugLogNoisy("scores for", eid, scores, overrideScore)
 
     if (overrideScore >= Math.max(...scores.map(Math.abs))) {
       if (foundPrey) {
-        debugLog(selfDino.id, "going to pursue", foundPrey.id)
+        debugLogNoisy(selfDino.id, "going to pursue", foundPrey.id)
         addPursue(world, selfDino.id, foundPrey)
       }
 
@@ -72,12 +72,12 @@ export default function awarenessSystem(world: ECSWorld) {
       const dirScore = scores[highestScoringDir]
       if (dirScore < 0) {
         addFlee(world, selfDino.id, highestScoringDir)
-        debugLog(selfDino.id, "going to flee", highestScoringDir)
+        debugLogNoisy(selfDino.id, "going to flee", highestScoringDir)
       } else {
         // NOTE maybe add a Roam component or something other than Flee for a better tag
         let oppositeDirection = (highestScoringDir + 2) % 4
         addFlee(world, selfDino.id, oppositeDirection)
-        debugLog(selfDino.id, "going to wander", highestScoringDir)
+        debugLogNoisy(selfDino.id, "going to wander", highestScoringDir)
       }
     }
 
@@ -98,6 +98,7 @@ function surveyQuadrants(self: Dino, world: ECSWorld) {
     const other = world.level.getEntity(x, y)!
     if (other === self) return
     dir = relativePosition(self.getXY(), other.getXY())
+    const dist = self.getXY().dist(other.getXY())
 
     if (other instanceof Dino) {
       if ((other.kind = "PREDATOR") && other.dominance > self.dominance) {
@@ -105,17 +106,15 @@ function surveyQuadrants(self: Dino, world: ECSWorld) {
         dirScores[dir] += -1 * proximityMultiplier(self.getXY(), other.getXY())
       }
 
-      // TODO use terriorial and herding / pack hunting tags instead
       if (self.kind === "PREDATOR") {
-        if (other.dominance === self.dominance) {
-          // territorial
-          dirScores[dir] += -2
+        if (hasComponent(world, Territorial, self.id) && other.dominance === self.dominance) {
+          dirScores[dir] += -2 * proximityMultiplier(self.getXY(), other.getXY())
         }
       }
 
       if (self.kind === "HERBIVORE") {
-        if (other.dominance === self.dominance) {
-          // herding
+        if (hasComponent(world, Herding, self.id) && other.dominance === self.dominance && dist > 2) {
+          dirScores[dir] += 2
         }
       }
 
@@ -136,7 +135,7 @@ function detectPrey(sortedNearestDinos: Dino[], selfDino: Dino): Dino | null {
   for (let prey of sortedNearestDinos) {
     if (prey.id === selfDino.id || prey.dead) continue
 
-    debugLog(selfDino.id, "considering", prey.id)
+    debugLogNoisy(selfDino.id, "considering", prey.id)
     // find first viable dino in observation range
     const dist = selfDino.getXY().dist(prey.getXY())
     // Predators have longer range when hunting
@@ -155,9 +154,9 @@ function detectPrey(sortedNearestDinos: Dino[], selfDino: Dino): Dino | null {
     score -= Math.floor(prey.getXY().dist(target.getXY()) / 2)
     if (score > 0) {
       target = prey
-      debugLog(selfDino.id, "found better option", target.id)
+      debugLogNoisy(selfDino.id, "found better option", target.id)
     } else {
-      debugLog(selfDino.id, "stopping search, going after", target.id)
+      debugLogNoisy(selfDino.id, "stopping search, going after", target.id)
       break
     }
   }

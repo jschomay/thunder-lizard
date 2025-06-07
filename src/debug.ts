@@ -15,6 +15,8 @@ export function debug(level: MainLevel) {
   }
   updateFPS()
 
+  window.dinos = level.dinos
+
   // inspect helpers
   window._at = (x, y) => level.map.at(new XY(x, y))
   level.game._container.addEventListener("click", e => {

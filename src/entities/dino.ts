@@ -1,7 +1,7 @@
-import * as ROT from "../../lib/rotjs";
 import Entity from "../entity";
 import XY from "../xy";
 import Level from "../level";
+import { DEBUG } from "../debug";
 
 
 export type dinoKind = "PREDATOR" | "HERBIVORE" | "SCAVENGER"
@@ -21,9 +21,13 @@ export default class Dino extends Entity {
   }
 
   getVisual() {
-    return this.dead
-      ? { ...super.getVisual(), ch: "%", fg: "lightgrey" }
-      : super.getVisual()
+    if (DEBUG > 1) {
+      return { ...super.getVisual(), ch: this.kind[0] + this.dominance }
+    } else {
+      return this.dead
+        ? { ...super.getVisual(), ch: "%", fg: "lightgrey" }
+        : super.getVisual()
+    }
   }
 
   getSpeed() {

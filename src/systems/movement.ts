@@ -9,7 +9,7 @@ import {
 import * as ROT from '../../lib/rotjs'
 import MainLevel, { ECSWorld } from '../level'
 import { Awareness, Controlled, Flee, Movement, Pursue, Stunned } from '../components'
-import { DEBUG, debugLog } from '../debug'
+import { DEBUG, debugLogNoisy } from '../debug'
 import XY from '../xy'
 import Path from './path'
 import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
@@ -158,7 +158,7 @@ function _handlePursue(world: ECSWorld, id: number) {
     return
   }
 
-  debugLog(selfDino.id, "pursuing", targetDino.id, "distance:", Path.length(selfDino.id))
+  debugLogNoisy(selfDino.id, "pursuing", targetDino.id, "distance:", Path.length(selfDino.id))
 
   // path has diagonals, but dino can only move orthogonally
   // so move orthogonally but don't advance the path so that the next pass will also be orthogonal
@@ -181,7 +181,7 @@ function _handlePursue(world: ECSWorld, id: number) {
 
   // reached target
   if (nextCoord.is(targetDino.getXY())) {
-    debugLog(selfDino.id, "reached prey", targetDino.id)
+    debugLogNoisy(selfDino.id, "reached prey", targetDino.id)
 
     // TODO add carcass component?
     // TODO move this to a helper
@@ -229,7 +229,7 @@ function _calculatePath(selfDino: Dino, target: Dino) {
 
 
 function _handleFlee(world: ECSWorld, id: number) {
-  debugLog(id, "fleeing")
+  debugLogNoisy(id, "fleeing")
   const selfDino = world.level.dinos.get(id)
   if (!selfDino) return
 
