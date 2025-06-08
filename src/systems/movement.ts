@@ -115,12 +115,12 @@ function _handlePlayer(world: ECSWorld) {
   let dirXY = new XY(...dir!)
   const destination = world.level.playerDino.getXY().plus(dirXY)
   // TODO check for eating dino
-  let prey = world.level.dinos.at(destination)
-  if (prey) {
-    removeComponent(world, Movement, prey.id)
-    removeComponent(world, Awareness, prey.id)
-    removeComponent(world, Controlled, prey.id)
-    prey.dead = true
+  let other = world.level.dinos.at(destination)
+  if (other && other.dominance < world.level.playerDino.dominance) {
+    removeComponent(world, Movement, other.id)
+    removeComponent(world, Awareness, other.id)
+    removeComponent(world, Controlled, other.id)
+    other.dead = true
     return
   }
   if (!isValidPosition(destination, world.level)) return
