@@ -8,7 +8,7 @@ import {
 
 import * as ROT from '../../lib/rotjs'
 import MainLevel, { ECSWorld } from '../level'
-import { Awareness, Controlled, Flee, Movement, Pursue, Stunned } from '../components'
+import { Awareness, Controlled, Flee, Hiding, Movement, Pursue, Stunned } from '../components'
 import { DEBUG, debugLogNoisy } from '../debug'
 import XY from '../xy'
 import Path from './path'
@@ -16,21 +16,21 @@ import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
 
 
-const pursueRangeReduction = 3
+const pursueFrequencyReduction = 2
 export function addPursue(world: ECSWorld, id: number, other: Dino) {
   addComponent(world, Pursue, id)
   Pursue.target[id] = other.id
   // NOTE be careful if this adjustment causes a negative range, as it will "wrap" (ui8)
-  Awareness.range[id] /= pursueRangeReduction
+  Awareness.turnsToSkip[id] *= pursueFrequencyReduction
 }
 export function removePursue(world: ECSWorld, id: number) {
   if (hasComponent(world, Pursue, id)) {
     removeComponent(world, Pursue, id)
-    Awareness.range[id] *= pursueRangeReduction
+    Awareness.turnsToSkip[id] /= pursueFrequencyReduction
   }
 }
 
-const fleeFrequencyReduction = 1.5
+const fleeFrequencyReduction = 2
 export function addFlee(world: ECSWorld, id: number, dir: number) {
   addComponent(world, Flee, id)
   Flee.source[id] = dir
@@ -84,6 +84,7 @@ const DIRECTION_UP = parseInt('0001', 2);    // 1
 const DIRECTION_RIGHT = parseInt('0010', 2); // 2
 const DIRECTION_DOWN = parseInt('0100', 2);  // 4
 const DIRECTION_LEFT = parseInt('1000', 2);  // 8
+const SPACE = parseInt('10000', 2) // 16
 
 function _handlePlayer(world: ECSWorld) {
   if (world.level.playerDino.dead) return
@@ -93,6 +94,12 @@ function _handlePlayer(world: ECSWorld) {
     return
   }
   Movement.turnsSinceLastMove[eid] = 0
+  if ((SPACE & Controlled.pressed[eid]) !== 0) {
+    // TODO when tracking downs and ups, reset here based on ups, for now reset all
+    // for now that means you can't hold multiple keys (like arrow and space then let go of space)
+    Controlled.pressed[eid] = 0
+    return // hiding; cant move
+  }
   let dir = null
   if ((DIRECTION_UP & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][0];
   if ((DIRECTION_RIGHT & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][1];
@@ -101,6 +108,8 @@ function _handlePlayer(world: ECSWorld) {
 
   if (!dir) return
 
+  // TODO when tracking downs and ups, reset here based on ups, for now reset all
+  // for now that means you can't hold multiple keys (like arrow and space then let go of space)
   Controlled.pressed[eid] = 0
 
   let dirXY = new XY(...dir!)
@@ -119,8 +128,28 @@ function _handlePlayer(world: ECSWorld) {
   world.level.viewportOffset = world.level.viewportOffset.plus(dirXY)
 }
 
-export function keypressCb(this: MainLevel, dir: string) {
-  switch (dir) {
+export function keypressCb(this: MainLevel, key: string, keyUp = false) {
+  if (keyUp) {
+    switch (key) {
+      case " ":
+        Controlled.pressed[this.playerId] &= ~SPACE;
+        removeComponent(this.ecsWorld, Hiding, this.playerId)
+        break;
+      // TODO this doesn't work nicel if key is tapped between frames
+      // instead track both downs and ups and clear downs after processed if up is logged
+      // case "ArrowUp": Controlled.pressed[this.playerId] &= ~DIRECTION_UP; break;
+      // case "ArrowRight": Controlled.pressed[this.playerId] &= ~DIRECTION_RIGHT; break;
+      // case "ArrowDown": Controlled.pressed[this.playerId] &= ~DIRECTION_DOWN; break;
+      // case "ArrowLeft": Controlled.pressed[this.playerId] &= ~DIRECTION_LEFT; break;
+      // default: 0
+    }
+    return
+  }
+  switch (key) {
+    case " ":
+      Controlled.pressed[this.playerId] |= SPACE;
+      addComponent(this.ecsWorld, Hiding, this.playerId)
+      break;
     case "ArrowUp": Controlled.pressed[this.playerId] |= DIRECTION_UP; break;
     case "ArrowRight": Controlled.pressed[this.playerId] |= DIRECTION_RIGHT; break;
     case "ArrowDown": Controlled.pressed[this.playerId] |= DIRECTION_DOWN; break;
@@ -165,17 +194,13 @@ function _handlePursue(world: ECSWorld, id: number) {
   let relDir = relativePosition(selfDino.getXY(), nextCoord)
   let orthogonalTarget = selfDino.getXY().plus(new XY(...ROT.DIRS[4][relDir]))
   if (!nextCoord.is(orthogonalTarget)) {
-    // find the first valid orthogonal position (4 in total to check)
-    let attempts = 0
-    while (!isValidPosition(orthogonalTarget, world.level) && attempts < 3) {
-      attempts++
-      relDir = (relDir + 1) % 4
-      orthogonalTarget = selfDino.getXY().plus(new XY(...ROT.DIRS[4][relDir]))
+    if (isValidPosition(orthogonalTarget, world.level)) {
+      selfDino.moveTo(orthogonalTarget)
+    } else {
+      _calculatePath(selfDino, targetDino, 4)
+      selfDino.moveTo(orthogonalTarget)
+      _calculatePath(selfDino, targetDino)
     }
-    // TODO dino can still get stuck on lava, I may need to pathfind in 4 directions to get to a safe area
-    // but risk/reward system might fix this
-    if (isValidPosition(orthogonalTarget, world.level)) selfDino.moveTo(orthogonalTarget)
-    _calculatePath(selfDino, targetDino)
     return
   }
 
@@ -207,18 +232,18 @@ function _handlePursue(world: ECSWorld, id: number) {
 }
 
 let xy = new XY(0, 0)
-function _calculatePath(selfDino: Dino, target: Dino) {
+function _calculatePath(selfDino: Dino, target: Dino, topology: 4 | 8 = 8) {
   Path.init(selfDino.id)
   var passableCallback = (x, y) => {
     xy.x = x
     xy.y = y
     // only want to check terrain when making a path (to avoid expensive pathfinding)
     // when following the path we MUST make sure it is valid (since the terrain or dino positions can change)
-    return isValidTerrain(xy, selfDino.getLevel());
+    return isValidTerrain(xy, selfDino.getLevel()) && !selfDino.getLevel().dinos.at(xy)?.dead
   }
 
   // uses 8-direction for paths to get diagonals
-  var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback);
+  var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback, { topology });
 
   astar.compute(selfDino.getXY().x, selfDino.getXY().y, (x, y) => {
     Path.push(selfDino.id, x, y)

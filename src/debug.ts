@@ -38,9 +38,9 @@ export function debug(level: MainLevel) {
 }
 
 export function debugLogNoisy(...args: any[]) {
-  if (DEBUG >= 2) console.log(...args)
+  if (DEBUG >= 2) console.debug(...args)
 }
 
 export function debugLog(...args: any[]) {
-  if (DEBUG >= 1) console.log(...args)
+  if (DEBUG >= 1) console.debug(...args)
 }

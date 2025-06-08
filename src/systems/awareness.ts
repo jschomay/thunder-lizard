@@ -5,7 +5,7 @@ import {
   removeComponent
 } from 'bitecs'
 import { ECSWorld } from '../level'
-import { Awareness, Herding, Pursue, Stunned, Territorial } from '../components'
+import { Awareness, Herding, Hiding, Pursue, Stunned, Territorial } from '../components'
 import { debugLog, debugLogNoisy } from '../debug'
 import { removePursue, removeFlee, addPursue, addFlee } from './movement'
 import * as ROT from '../../lib/rotjs'
@@ -43,20 +43,20 @@ export default function awarenessSystem(world: ECSWorld) {
     Awareness.turnsSinceLastObserve[eid] = 0
     debugLogNoisy(eid, "------------------")
 
+    // clear out any current behavior
     removeFlee(world, selfDino.id)
+    removePursue(world, selfDino.id)
 
     let overrideScore = 0
     let foundPrey = null
-    if (hasComponent(world, Pursue, selfDino.id)) {
-      overrideScore = 3
-    } else if (selfDino.kind === "PREDATOR") {
+    // finding prety is more targeted than surveyQuadrants and higher weighted
+    if (selfDino.kind === "PREDATOR") {
       foundPrey = detectPrey(world.level.dinos.nearest(selfDino.getXY()), selfDino)
       if (foundPrey) overrideScore = 3
     }
 
     const scores = surveyQuadrants(selfDino, world)
 
-    // TODO use debug
     debugLogNoisy("scores for", eid, scores, overrideScore)
 
     if (overrideScore >= Math.max(...scores.map(Math.abs))) {
@@ -64,21 +64,20 @@ export default function awarenessSystem(world: ECSWorld) {
         debugLogNoisy(selfDino.id, "going to pursue", foundPrey.id)
         addPursue(world, selfDino.id, foundPrey)
       }
+      return world
+    }
 
+    const highestScoringDir = scores.reduce(([high, i], curV, curI) => Math.abs(curV) > Math.abs(high) ? [curV, curI] : [high, i], [0, 0])[1]
+    // NOTE do something random if score is 0?
+    const dirScore = scores[highestScoringDir]
+    if (dirScore < 0) {
+      addFlee(world, selfDino.id, highestScoringDir)
+      debugLogNoisy(selfDino.id, "going to flee", highestScoringDir)
     } else {
-      removePursue(world, selfDino.id)
-      const highestScoringDir = scores.reduce(([high, i], curV, curI) => Math.abs(curV) > Math.abs(high) ? [curV, curI] : [high, i], [0, 0])[1]
-      // NOTE do something random if score is 0?
-      const dirScore = scores[highestScoringDir]
-      if (dirScore < 0) {
-        addFlee(world, selfDino.id, highestScoringDir)
-        debugLogNoisy(selfDino.id, "going to flee", highestScoringDir)
-      } else {
-        // NOTE maybe add a Roam component or something other than Flee for a better tag
-        let oppositeDirection = (highestScoringDir + 2) % 4
-        addFlee(world, selfDino.id, oppositeDirection)
-        debugLogNoisy(selfDino.id, "going to wander", highestScoringDir)
-      }
+      // NOTE maybe add a Roam component or something other than Flee for a better tag
+      let oppositeDirection = (highestScoringDir + 2) % 4
+      addFlee(world, selfDino.id, oppositeDirection)
+      debugLogNoisy(selfDino.id, "going to wander", highestScoringDir)
     }
 
     return world
@@ -93,7 +92,6 @@ function surveyQuadrants(self: Dino, world: ECSWorld) {
   let dir = 0
   const fov = new ROT.FOV.PreciseShadowcasting(() => true);
   fov.compute(self.getXY().x, self.getXY().y, range, (x, y, r, v) => {
-    // TODO take account of Awareness.accuracy and camouflage
     if (x < 0 || y < 0 || x >= MAP_SIZE || y >= MAP_SIZE) return
     const other = world.level.getEntity(x, y)!
     if (other === self) return
@@ -101,9 +99,12 @@ function surveyQuadrants(self: Dino, world: ECSWorld) {
     const dist = self.getXY().dist(other.getXY())
 
     if (other instanceof Dino) {
+
       if ((other.kind = "PREDATOR") && other.dominance > self.dominance) {
-        // NOTE can weight danger level based on dino type
-        dirScores[dir] += -1 * proximityMultiplier(self.getXY(), other.getXY())
+        if (seesDino(self, other)) {
+          // NOTE can weight danger level based on dino type
+          dirScores[dir] += -1 * proximityMultiplier(self.getXY(), other.getXY())
+        }
       }
 
       if (self.kind === "PREDATOR") {
@@ -135,6 +136,8 @@ function detectPrey(sortedNearestDinos: Dino[], selfDino: Dino): Dino | null {
   for (let prey of sortedNearestDinos) {
     if (prey.id === selfDino.id || prey.dead) continue
 
+    if (!seesDino(selfDino, prey)) continue
+
     debugLogNoisy(selfDino.id, "considering", prey.id)
     // find first viable dino in observation range
     const dist = selfDino.getXY().dist(prey.getXY())
@@ -161,6 +164,13 @@ function detectPrey(sortedNearestDinos: Dino[], selfDino: Dino): Dino | null {
     }
   }
   return target
+}
+
+function seesDino(selfDino: Dino, otherDino: Dino): boolean {
+  let accuracy = Awareness.accuracy[selfDino.id]
+  if (hasComponent(selfDino.getLevel().ecsWorld, Hiding, otherDino.id)) accuracy *= 0.5
+  // TODO hiding multiplier should be based on terrain under it
+  return ROT.RNG.getPercentage() < accuracy
 }
 
 function proximityMultiplier(a: XY, b: XY): number {

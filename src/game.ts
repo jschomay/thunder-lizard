@@ -28,6 +28,7 @@ export default class Game {
     this.switchLevel(level);
 
     window.addEventListener("keydown", this.onKeyDown.bind(this));
+    window.addEventListener("keyup", this.onKeyUp.bind(this));
     if (this.detectMobile()) {
       this._container.addEventListener("touchstart", this.onClick.bind(this));
     }
@@ -45,6 +46,11 @@ export default class Game {
   public onKeyDown(e: KeyboardEvent) {
     if (this.HANDLED_KEYS.includes(e.key)) { e.preventDefault(); }
     this.level.onKeyDown(e);
+  }
+
+  public onKeyUp(e: KeyboardEvent) {
+    if (this.HANDLED_KEYS.includes(e.key)) { e.preventDefault(); }
+    this.level.onKeyUp(e);
   }
 
 

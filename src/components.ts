@@ -58,3 +58,5 @@ export const Controlled = defineComponent({
 export const Herding = defineComponent({ herding: Types.ui8 })
 
 export const Territorial = defineComponent({ territorial: Types.ui8 })
+
+export const Hiding = defineComponent({ hiding: Types.ui8 })

@@ -202,8 +202,14 @@ export default class MainLevel {
     } else if (e.key.toLowerCase() === "p") {
       this.handlePause()
 
-    } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+    } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
       movementKeypressCb.call(this, e.key)
+    }
+  }
+
+  onKeyUp(e: KeyboardEvent) {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+      movementKeypressCb.call(this, e.key, true)
     }
   }
 
@@ -430,7 +436,7 @@ export default class MainLevel {
     const BASE_OBSERVE_RANGE = 10
     const DEFAULT_MOVEMENT_FREQUENCY = 1
     const selectedCoords = ROT.RNG.shuffle(validCoords).slice(0, NUM_DINOS)
-    const kinds: dinoKind[] = ROT.RNG.shuffle(["HERBIVORE", "HERBIVORE", "HERBIVORE", "PREDATOR", "PREDATOR"])
+    const kinds: dinoKind[] = ROT.RNG.shuffle(["HERBIVORE", "HERBIVORE", "PREDATOR", "PREDATOR", "PREDATOR"])
 
     const countsPerLevel = (new Array(NUM_DINO_LEVELS)).fill(0)
       .map((_, i) => 0.5 + i / (NUM_DINO_LEVELS - 1))
@@ -441,6 +447,7 @@ export default class MainLevel {
       addComponent(this.ecsWorld, Awareness, id)
       Awareness.range[id] = BASE_OBSERVE_RANGE
       Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
+      Awareness.accuracy[id] = 70
 
       addComponent(this.ecsWorld, Movement, id)
       Movement.frequency[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
