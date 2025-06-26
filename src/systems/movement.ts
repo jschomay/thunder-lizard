@@ -16,31 +16,31 @@ import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
 
 
-const pursueFrequencyReduction = 2
+// const pursueFrequencyReduction = 2
 export function addPursue(world: ECSWorld, id: number, other: Dino) {
   addComponent(world, Pursue, id)
   Pursue.target[id] = other.id
   // NOTE be careful if this adjustment causes a negative range, as it will "wrap" (ui8)
-  Awareness.turnsToSkip[id] *= pursueFrequencyReduction
+  // Awareness.turnsToSkip[id] *= pursueFrequencyReduction
 }
 export function removePursue(world: ECSWorld, id: number) {
   if (hasComponent(world, Pursue, id)) {
     removeComponent(world, Pursue, id)
-    Awareness.turnsToSkip[id] /= pursueFrequencyReduction
+    // Awareness.turnsToSkip[id] /= pursueFrequencyReduction
   }
 }
 
-const fleeFrequencyReduction = 2
+// const fleeFrequencyReduction = 1
 export function addFlee(world: ECSWorld, id: number, dir: number) {
   addComponent(world, Flee, id)
   Flee.source[id] = dir
-  Awareness.turnsToSkip[id] *= fleeFrequencyReduction
+  // Awareness.turnsToSkip[id] *= fleeFrequencyReduction
 }
 
 export function removeFlee(world: ECSWorld, id: number) {
   if (hasComponent(world, Flee, id)) {
     removeComponent(world, Flee, id)
-    Awareness.turnsToSkip[id] /= fleeFrequencyReduction
+    // Awareness.turnsToSkip[id] /= fleeFrequencyReduction
   }
 }
 

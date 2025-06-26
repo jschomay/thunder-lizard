@@ -20,7 +20,7 @@ import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentTy
 import { Awareness, Controlled, Herding, Movement, Pursue, Territorial } from "./components";
 import movementSystem, { keypressCb as movementKeypressCb } from "./systems/movement";
 import Path from "./systems/path";
-import { isValidPosition } from "./utils";
+import { darken, isValidPosition } from "./utils";
 
 export interface ECSWorld extends IWorld {
   level: MainLevel;
@@ -56,7 +56,7 @@ export default class MainLevel {
     addComponent(this.ecsWorld, Movement, this.playerId)
     Movement.frequency[this.playerId] = 0
     let xy = new XY(this.viewportOffset.x + this.viewportSize.x / 2, this.viewportOffset.y + this.viewportSize.y / 2)
-    this.playerDino = new Dino(this, xy, this.playerId, 3, "PREDATOR")
+    this.playerDino = new Dino(this, xy, this.playerId, 2, "PREDATOR")
     this.playerDino.setVisual({ ch: "𑿋", fg: "yellow" })
     this.dinos.add(this.playerDino)
 
@@ -85,7 +85,7 @@ export default class MainLevel {
   }
 
   waterLoop() {
-    const tickTimeMs = 300
+    const tickTimeMs = 200
     const visible = new Rectangle({
       x: this.viewportOffset.x,
       y: this.viewportOffset.y,
@@ -104,7 +104,7 @@ export default class MainLevel {
   }
 
   lavaloop() {
-    const tickTimeMs = 100
+    const tickTimeMs = 70
     const loop = () => {
       // cellular automata lava "spread"
       // using spread operator to force Set iterator or this loop would be recursive
@@ -161,7 +161,7 @@ export default class MainLevel {
   }
 
   async mainLoop() {
-    const tickTimeMs = 200
+    const tickTimeMs = 100
     const loop = () => {
       awarenessSystem(this.ecsWorld)
       movementSystem(this.ecsWorld)
@@ -250,9 +250,9 @@ export default class MainLevel {
     if (!entity) throw new Error("No entity to draw for " + xyOrEntity.toString())
     let { x, y } = entity.getXY().minus(this.viewportOffset)
     let visual = entity.getVisual()
-    let color = visual.fg
-    let brightened = Color.toHex(Color.add(Color.fromString("#222"), Color.fromString(color)))
-    this.game.display.draw(x, y, visual.ch, brightened);
+    let bg = visual.fg
+    if (entity instanceof Dino && entity.dead) bg = this.map.at(entity.getXY())!.getVisual().fg
+    this.game.display.draw(x, y, visual.ch, visual.fg, darken(bg));
   }
 
   /**
@@ -262,6 +262,9 @@ export default class MainLevel {
     for (let e of (this.map.get(this.getViewport()) as Entity[])) {
       e = this.dinos.at(e.getXY()) || e
       this.draw(e)
+    }
+    for (let d of this.dinos.withIn(this.getViewport())) {
+      d.dead ? this.drawSkeleton(d) : this.drawDino(d)
     }
     if (DEBUG > 1) {
       for (let d of this.dinos.withIn(this.getViewport())) {
@@ -276,6 +279,56 @@ export default class MainLevel {
         }
       }
     }
+  }
+
+  drawSkeleton(d: Dino) {
+    let dir = d.id % 4
+    let tailCh = "/"
+    let tailXY = new XY(...ROT.DIRS[4][dir])
+    let tail = d.getXY().minus(tailXY)
+    let bg = darken(this.map.at(tail)?.getVisual().fg!)
+    tail = tail.minus(this.viewportOffset)
+    this.game.display.draw(tail.x, tail.y, tailCh, d.getVisual().fg, bg);
+
+    let headCh = "o"
+    let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
+    let head = d.getXY().minus(headXY)
+    bg = darken(this.map.at(head)?.getVisual().fg!)
+    head = head.minus(this.viewportOffset)
+    this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
+  }
+
+
+  drawDino(d: Dino) {
+    if (!hasComponent(this.ecsWorld, Movement, d.id)) return
+    let dir = Movement.direction[d.id]
+    let tailCh = ["↟", "↠", "↡", "↞"][dir]
+    let tailXY = new XY(...ROT.DIRS[4][dir])
+    let tail = d.getXY().minus(tailXY)
+    let bg = darken(this.map.at(tail)?.getVisual().fg!)
+    tail = tail.minus(this.viewportOffset)
+    this.game.display.draw(tail.x, tail.y, tailCh, d.getVisual().fg, bg);
+
+    let headCh = ["⏶", "⏵", "⏷", "⏴"][dir]
+    let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
+    let head = d.getXY().minus(headXY)
+    bg = darken(this.map.at(head)?.getVisual().fg!)
+    head = head.minus(this.viewportOffset)
+    this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
+
+    // let legCh = dir % 2 ? "܅" : ":"
+    let legCh = dir % 2 ? "-" : "'"
+    let rLegXY = new XY(...ROT.DIRS[4][(dir + 1) % 4])
+    let rLeg = d.getXY().minus(rLegXY)
+    bg = darken(this.map.at(rLeg)?.getVisual().fg!)
+    rLeg = rLeg.minus(this.viewportOffset)
+    this.game.display.draw(rLeg.x, rLeg.y, legCh, d.getVisual().fg, bg);
+
+    let lLegXY = new XY(...ROT.DIRS[4][(dir + 3) % 4])
+    let lLeg = d.getXY().minus(lLegXY)
+    bg = darken(this.map.at(lLeg)?.getVisual().fg!)
+    lLeg = lLeg.minus(this.viewportOffset)
+    this.game.display.draw(lLeg.x, lLeg.y, legCh, d.getVisual().fg, bg);
   }
 
   getEntity(x: number, y: number) {
@@ -430,8 +483,6 @@ export default class MainLevel {
     let validCoords: XY[] = terrainsWithMobs.flatMap(
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
-    const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
-    const colors = ROT.RNG.shuffle(["red", "brown", "lightgreen", "purple", "gray", "orange"])
     const BASE_OBSERVE_FREQUENCY = 3
     const BASE_OBSERVE_RANGE = 10
     const DEFAULT_MOVEMENT_FREQUENCY = 1
@@ -442,7 +493,7 @@ export default class MainLevel {
       .map((_, i) => 0.5 + i / (NUM_DINO_LEVELS - 1))
       .map(n => Math.floor(n * NUM_DINOS / NUM_DINO_LEVELS))
 
-    const makeDino = (level: number, kind: dinoKind, tags: ComponentType<any>[]) => {
+    const makeDino = (dominance: number, kind: dinoKind, tags: ComponentType<any>[]) => {
       let id = addEntity(this.ecsWorld)
       addComponent(this.ecsWorld, Awareness, id)
       Awareness.range[id] = BASE_OBSERVE_RANGE
@@ -457,9 +508,8 @@ export default class MainLevel {
       // TODO keep adding components
 
       const position = selectedCoords.pop()!
-      let d = new Dino(this, position, id, level, kind)
+      let d = new Dino(this, position, id, dominance, kind)
       this.dinos.add(d)
-      d.setVisual({ ch: dinoCharMap[level - 1], fg: colors[level - 1] })
     }
     const generatePerLevel = (level: number, populationRemaining: number) => {
       let numInLevel = countsPerLevel.shift()!
@@ -482,9 +532,11 @@ export default class MainLevel {
       }
 
       const tags: ComponentType<any>[] = []
-      const chance = ROT.RNG.getPercentage()
-      if (chance < 20) { tags.push(Territorial) }
-      if (chance > 88) { tags.push(Herding) }
+      // const chance = ROT.RNG.getPercentage()
+      // if (chance < 20) { tags.push(Territorial) }
+      // if (chance > 88) { tags.push(Herding) }
+      if (level <= 3) tags.push(Herding)
+      if (level === 5) tags.push(Territorial)
 
       for (let i = 0; i < numInLevel; i++) { makeDino(level, kind, tags) }
       debugLog(`Generated ${numInLevel} dinosaurs at level ${level} of kind ${kind}`)

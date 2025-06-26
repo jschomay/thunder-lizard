@@ -3,6 +3,8 @@ import XY from "../xy";
 import Level from "../level";
 import { RNG } from "../../lib/rotjs";
 
+let smallSymbols = "ˑ˒˓˔˕˖˗˘˙˚˛˝ ˠˤˬ˯˰˱˲˳˴˵˶˷".split("")
+
 export type TerrainConstructor = new (level: Level, xy: XY) => Terrain
 export class Terrain extends Entity { terrain = true }
 

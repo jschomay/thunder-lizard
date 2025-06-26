@@ -2,6 +2,7 @@ import * as Terrain from "./entities/terrain";
 import MainLevel from "./level";
 import XY from "./xy";
 import { Bounds } from '../src/dinos.ts'
+import { Color } from "../lib/rotjs/index";
 
 /**
  * Returns the degrees between two points in terms of a compass
@@ -90,4 +91,8 @@ export function isValidTerrain(xy: XY, level: MainLevel) {
   */
 export function withIn(bounds: Bounds, x: number, y: number) {
   return x >= bounds.x && x <= bounds.x + bounds.w && y >= bounds.y && y <= bounds.y + bounds.h
+}
+
+export function darken(color: string): string {
+  return Color.toHex(Color.multiply(Color.fromString("#555"), Color.fromString(color)))
 }

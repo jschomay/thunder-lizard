@@ -49,10 +49,10 @@ export default function awarenessSystem(world: ECSWorld) {
 
     let overrideScore = 0
     let foundPrey = null
-    // finding prety is more targeted than surveyQuadrants and higher weighted
+    // finding prey is more targeted than surveyQuadrants and higher weighted
     if (selfDino.kind === "PREDATOR") {
       foundPrey = detectPrey(world.level.dinos.nearest(selfDino.getXY()), selfDino)
-      if (foundPrey) overrideScore = 3
+      if (foundPrey) overrideScore = 15
     }
 
     const scores = surveyQuadrants(selfDino, world)
@@ -109,15 +109,19 @@ function surveyQuadrants(self: Dino, world: ECSWorld) {
 
       if (self.kind === "PREDATOR") {
         if (hasComponent(world, Territorial, self.id) && other.dominance === self.dominance) {
-          dirScores[dir] += -2 * proximityMultiplier(self.getXY(), other.getXY())
+          dirScores[dir] += -4 * proximityMultiplier(self.getXY(), other.getXY())
         }
       }
 
-      if (self.kind === "HERBIVORE") {
-        if (hasComponent(world, Herding, self.id) && other.dominance === self.dominance && dist > 2) {
-          dirScores[dir] += 2
-        }
+      // if (self.kind === "HERBIVORE") {
+      //   if (hasComponent(world, Herding, self.id) && other.dominance === self.dominance && dist > 2) {
+      //     dirScores[dir] += 2
+      //   }
+      // }
+      if (other.dominance === self.dominance && dist > 2) {
+        dirScores[dir] += 2
       }
+
 
 
     } else if (other instanceof Terrain.Lava) {

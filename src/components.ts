@@ -22,6 +22,7 @@ export const Stunned = defineComponent({
 export const Movement = defineComponent({
   turnsSinceLastMove: Types.ui8, // turns until next move
   frequency: Types.ui8, // frequency of moves, 0 moves eery turn, higher numbers skip more turns
+  direction: Types.ui8
 })
 
 
