@@ -302,12 +302,14 @@ export default class MainLevel {
   drawDino(d: Dino) {
     if (!hasComponent(this.ecsWorld, Movement, d.id)) return
     let dir = Movement.direction[d.id]
-    let tailCh = ["↟", "↠", "↡", "↞"][dir]
+    let tailCh = ["⇂", "↼", "↾", "⇁"][dir]
+    let tailChAlt = ["↲", "↜", "↱", "↝"][dir]
     let tailXY = new XY(...ROT.DIRS[4][dir])
     let tail = d.getXY().minus(tailXY)
     let bg = darken(this.map.at(tail)?.getVisual().fg!)
     tail = tail.minus(this.viewportOffset)
-    this.game.display.draw(tail.x, tail.y, tailCh, d.getVisual().fg, bg);
+    let ch = ROT.RNG.getPercentage() < 20 ? tailChAlt : tailCh
+    this.game.display.draw(tail.x, tail.y, ch, d.getVisual().fg, bg);
 
     let headCh = ["⏶", "⏵", "⏷", "⏴"][dir]
     let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
@@ -317,7 +319,9 @@ export default class MainLevel {
     this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
 
     // let legCh = dir % 2 ? "܅" : ":"
-    let legCh = dir % 2 ? "-" : "'"
+    let frame = (d.getXY().x + d.getXY().y) % 2
+    let legChs = ["'", "-"]
+    let legCh = dir % 2 ? legChs[frame] : legChs[1 - frame]
     let rLegXY = new XY(...ROT.DIRS[4][(dir + 1) % 4])
     let rLeg = d.getXY().minus(rLegXY)
     bg = darken(this.map.at(rLeg)?.getVisual().fg!)
