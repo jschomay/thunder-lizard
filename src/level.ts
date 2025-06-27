@@ -286,16 +286,20 @@ export default class MainLevel {
     let tailCh = "/"
     let tailXY = new XY(...ROT.DIRS[4][dir])
     let tail = d.getXY().minus(tailXY)
-    let bg = darken(this.map.at(tail)?.getVisual().fg!)
-    tail = tail.minus(this.viewportOffset)
-    this.game.display.draw(tail.x, tail.y, tailCh, d.getVisual().fg, bg);
+    if (!(this.getEntity(tail.x, tail.y) instanceof Dino)) {
+      let bg = darken(this.map.at(tail)?.getVisual().fg!)
+      tail = tail.minus(this.viewportOffset)
+      this.game.display.draw(tail.x, tail.y, tailCh, d.getVisual().fg, bg);
+    }
 
     let headCh = "o"
     let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
     let head = d.getXY().minus(headXY)
-    bg = darken(this.map.at(head)?.getVisual().fg!)
-    head = head.minus(this.viewportOffset)
-    this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
+    if (!(this.getEntity(head.x, head.y) instanceof Dino)) {
+      let bg = darken(this.map.at(head)?.getVisual().fg!)
+      head = head.minus(this.viewportOffset)
+      this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
+    }
   }
 
 
@@ -307,16 +311,20 @@ export default class MainLevel {
     let tailXY = new XY(...ROT.DIRS[4][dir])
     let tail = d.getXY().minus(tailXY)
     let bg = darken(this.map.at(tail)?.getVisual().fg!)
-    tail = tail.minus(this.viewportOffset)
-    let ch = ROT.RNG.getPercentage() < 20 ? tailChAlt : tailCh
-    this.game.display.draw(tail.x, tail.y, ch, d.getVisual().fg, bg);
+    if (!(this.getEntity(tail.x, tail.y) instanceof Dino)) {
+      tail = tail.minus(this.viewportOffset)
+      let ch = ROT.RNG.getPercentage() < 20 ? tailChAlt : tailCh
+      this.game.display.draw(tail.x, tail.y, ch, d.getVisual().fg, bg);
+    }
 
     let headCh = ["⏶", "⏵", "⏷", "⏴"][dir]
     let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
     let head = d.getXY().minus(headXY)
-    bg = darken(this.map.at(head)?.getVisual().fg!)
-    head = head.minus(this.viewportOffset)
-    this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
+    if (!(this.getEntity(head.x, head.y) instanceof Dino)) {
+      bg = darken(this.map.at(head)?.getVisual().fg!)
+      head = head.minus(this.viewportOffset)
+      this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
+    }
 
     // let legCh = dir % 2 ? "܅" : ":"
     let frame = (d.getXY().x + d.getXY().y) % 2
@@ -324,15 +332,20 @@ export default class MainLevel {
     let legCh = dir % 2 ? legChs[frame] : legChs[1 - frame]
     let rLegXY = new XY(...ROT.DIRS[4][(dir + 1) % 4])
     let rLeg = d.getXY().minus(rLegXY)
-    bg = darken(this.map.at(rLeg)?.getVisual().fg!)
-    rLeg = rLeg.minus(this.viewportOffset)
-    this.game.display.draw(rLeg.x, rLeg.y, legCh, d.getVisual().fg, bg);
+    if (!(this.getEntity(rLeg.x, rLeg.y) instanceof Dino)) {
+      bg = darken(this.map.at(rLeg)?.getVisual().fg!)
+      rLeg = rLeg.minus(this.viewportOffset)
+      this.game.display.draw(rLeg.x, rLeg.y, legCh, d.getVisual().fg, bg);
+    }
+
 
     let lLegXY = new XY(...ROT.DIRS[4][(dir + 3) % 4])
     let lLeg = d.getXY().minus(lLegXY)
-    bg = darken(this.map.at(lLeg)?.getVisual().fg!)
-    lLeg = lLeg.minus(this.viewportOffset)
-    this.game.display.draw(lLeg.x, lLeg.y, legCh, d.getVisual().fg, bg);
+    if (!(this.getEntity(lLeg.x, lLeg.y) instanceof Dino)) {
+      bg = darken(this.map.at(lLeg)?.getVisual().fg!)
+      lLeg = lLeg.minus(this.viewportOffset)
+      this.game.display.draw(lLeg.x, lLeg.y, legCh, d.getVisual().fg, bg);
+    }
   }
 
   getEntity(x: number, y: number) {
