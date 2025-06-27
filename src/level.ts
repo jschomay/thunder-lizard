@@ -304,27 +304,33 @@ export default class MainLevel {
 
 
   drawDino(d: Dino) {
-    if (!hasComponent(this.ecsWorld, Movement, d.id)) return
     let dir = Movement.direction[d.id]
+
+    let headCh = ["⏶", "⏵", "⏷", "⏴"][dir]
+    let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
+    let head = d.getXY().minus(headXY)
+    let bg = darken(this.map.at(head)?.getVisual().fg!)
+    if (!(this.getEntity(head.x, head.y) instanceof Dino)) {
+      head = head.minus(this.viewportOffset)
+      this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
+    }
+
+    // Only head and body show in water
+    if (this.map.at(d.getXY().x, d.getXY().y) instanceof Terrain.Water) return
+
+
+    if (!hasComponent(this.ecsWorld, Movement, d.id)) return
     let tailCh = ["⇂", "↼", "↾", "⇁"][dir]
     let tailChAlt = ["↲", "↜", "↱", "↝"][dir]
     let tailXY = new XY(...ROT.DIRS[4][dir])
     let tail = d.getXY().minus(tailXY)
-    let bg = darken(this.map.at(tail)?.getVisual().fg!)
     if (!(this.getEntity(tail.x, tail.y) instanceof Dino)) {
+      bg = darken(this.map.at(tail)?.getVisual().fg!)
       tail = tail.minus(this.viewportOffset)
       let ch = ROT.RNG.getPercentage() < 20 ? tailChAlt : tailCh
       this.game.display.draw(tail.x, tail.y, ch, d.getVisual().fg, bg);
     }
 
-    let headCh = ["⏶", "⏵", "⏷", "⏴"][dir]
-    let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
-    let head = d.getXY().minus(headXY)
-    if (!(this.getEntity(head.x, head.y) instanceof Dino)) {
-      bg = darken(this.map.at(head)?.getVisual().fg!)
-      head = head.minus(this.viewportOffset)
-      this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
-    }
 
     // let legCh = dir % 2 ? "܅" : ":"
     let frame = (d.getXY().x + d.getXY().y) % 2
