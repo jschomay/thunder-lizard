@@ -17,10 +17,11 @@ import { MAP_SIZE, MOVEMENT_DECREASE_IN_WATER, NUM_DINO_LEVELS, NUM_DINOS, VIEWP
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
 import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentType } from "bitecs";
-import { Awareness, Controlled, Herding, Movement, Pursue, Territorial } from "./components";
+import { Awareness, Controlled, Deplacable, Deplaced, Herding, Movement, Pursue, Territorial } from "./components";
 import movementSystem, { keypressCb as movementKeypressCb } from "./systems/movement";
 import Path from "./systems/path";
 import { darken, isValidPosition } from "./utils";
+import deplacementSystem from "./systems/displacement";
 
 export interface ECSWorld extends IWorld {
   level: MainLevel;
@@ -37,7 +38,8 @@ export default class MainLevel {
   playerId: number
   playerDino: Dino
   game: Game
-  ecsWorld: ECSWorld
+  terrainEcsWorld: ECSWorld
+  dinoEcsWorld: ECSWorld
   paused: null | ((value: any) => void) = null // pause check and call to resume
   whenRunning: Promise<any> = Promise.resolve()
   private _fovCells: XY[] = []
@@ -50,12 +52,13 @@ export default class MainLevel {
     this.viewportOffset = new XY(MAP_SIZE / 3, MAP_SIZE / 3);
     this.scheduler = new ROT.Scheduler.Speed();
 
+    this.terrainEcsWorld = createWorld({ level: this })
     this._generateMap();
 
-    this.ecsWorld = createWorld({ level: this })
-    this.playerId = addEntity(this.ecsWorld)
-    addComponent(this.ecsWorld, Controlled, this.playerId)
-    addComponent(this.ecsWorld, Movement, this.playerId)
+    this.dinoEcsWorld = createWorld({ level: this })
+    this.playerId = addEntity(this.dinoEcsWorld)
+    addComponent(this.dinoEcsWorld, Controlled, this.playerId)
+    addComponent(this.dinoEcsWorld, Movement, this.playerId)
     Movement.turnsToSkip[this.playerId] = 0
     let playerStartingXY = new XY(this.viewportOffset.x + this.viewportSize.x / 2, this.viewportOffset.y + this.viewportSize.y / 2)
     // starting in water starts slow
@@ -167,8 +170,9 @@ export default class MainLevel {
   async mainLoop() {
     const tickTimeMs = 100
     const loop = () => {
-      awarenessSystem(this.ecsWorld)
-      movementSystem(this.ecsWorld)
+      awarenessSystem(this.dinoEcsWorld)
+      movementSystem(this.dinoEcsWorld)
+      deplacementSystem(this.terrainEcsWorld)
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
@@ -253,10 +257,15 @@ export default class MainLevel {
     let entity = xyOrEntity instanceof Entity ? xyOrEntity : this.map.at(xyOrEntity);
     if (!entity) throw new Error("No entity to draw for " + xyOrEntity.toString())
     let { x, y } = entity.getXY().minus(this.viewportOffset)
-    let visual = entity.getVisual()
-    let bg = visual.fg
+    let { ch, fg } = entity.getVisual()
+    let bg = fg
     if (entity instanceof Dino && entity.dead) bg = this.map.at(entity.getXY())!.getVisual().fg
-    this.game.display.draw(x, y, visual.ch, visual.fg, darken(bg));
+    if (hasComponent(this.terrainEcsWorld, Deplaced, (entity as TerrainClass).id)) {
+      // let amt = 1 - Deplaced.deplaced[(entity as TerrainClass).id] / 100
+      let amt = 0.7
+      fg = darken(fg, amt)
+    }
+    this.game.display.draw(x, y, ch, fg, darken(bg));
   }
 
   /**
@@ -272,7 +281,7 @@ export default class MainLevel {
     }
     if (DEBUG > 1) {
       for (let d of this.dinos.withIn(this.getViewport())) {
-        if (hasComponent(this.ecsWorld, Pursue, d.id)) {
+        if (hasComponent(this.dinoEcsWorld, Pursue, d.id)) {
           let x, y
           let len = Path.length(d.id) * 2
           for (let i = 2; i < (len - 2); i += 2) {
@@ -323,7 +332,7 @@ export default class MainLevel {
     if (this.map.at(d.getXY().x, d.getXY().y) instanceof Terrain.Water) return
 
 
-    if (!hasComponent(this.ecsWorld, Movement, d.id)) return
+    if (!hasComponent(this.dinoEcsWorld, Movement, d.id)) return
     let tailCh = ["⇂", "↼", "↾", "⇁"][dir]
     let tailChAlt = ["↲", "↜", "↱", "↝"][dir]
     let tailXY = new XY(...ROT.DIRS[4][dir])
@@ -477,6 +486,20 @@ export default class MainLevel {
         if (a < 0) terrain_class = terrain_class = Terrain.Lava
 
         let e = new terrain_class(this, new XY(i, j))
+        let id = addEntity(this.terrainEcsWorld)
+        e.id = id
+        if (terrain_class === Terrain.Grass) {
+          addComponent(this.terrainEcsWorld, Deplacable, id)
+          Deplacable.healRate[id] = 15
+        }
+        if (terrain_class === Terrain.Shrub) {
+          addComponent(this.terrainEcsWorld, Deplacable, id)
+          Deplacable.healRate[id] = 10
+        }
+        if (terrain_class === Terrain.Water) {
+          addComponent(this.terrainEcsWorld, Deplacable, id)
+          Deplacable.healRate[id] = 8
+        }
         // index everything for now
         let needsIndex = terrainMapping.includes(terrain_class)
         this.map.set(e, needsIndex)
@@ -521,17 +544,17 @@ export default class MainLevel {
       .map(n => Math.floor(n * NUM_DINOS / NUM_DINO_LEVELS))
 
     const makeDino = (dominance: number, kind: dinoKind, tags: ComponentType<any>[]) => {
-      let id = addEntity(this.ecsWorld)
-      addComponent(this.ecsWorld, Awareness, id)
+      let id = addEntity(this.dinoEcsWorld)
+      addComponent(this.dinoEcsWorld, Awareness, id)
       Awareness.range[id] = BASE_OBSERVE_RANGE
       Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
       Awareness.accuracy[id] = 70
 
-      addComponent(this.ecsWorld, Movement, id)
+      addComponent(this.dinoEcsWorld, Movement, id)
       // TODO maybe set speed by level?
       Movement.turnsToSkip[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
 
-      for (let tag of tags) { addComponent(this.ecsWorld, tag, id) }
+      for (let tag of tags) { addComponent(this.dinoEcsWorld, tag, id) }
 
       // TODO keep adding components
 

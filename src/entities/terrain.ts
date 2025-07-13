@@ -2,11 +2,18 @@ import Entity, { Visual } from "../entity";
 import XY from "../xy";
 import Level from "../level";
 import { RNG } from "../../lib/rotjs";
+import { hasComponent } from "bitecs";
+import { Deplaced } from "../components";
+import { darken } from "../utils";
 
 let smallSymbols = "ˑ˒˓˔˕˖˗˘˙˚˛˝ ˠˤˬ˯˰˱˲˳˴˵˶˷".split("")
 
 export type TerrainConstructor = new (level: Level, xy: XY) => Terrain
-export class Terrain extends Entity { terrain = true }
+
+export class Terrain extends Entity {
+  id: number = 0
+  terrain = true
+}
 
 export class Lava extends Terrain {
   constructor(level: Level, xy: XY) {

@@ -61,3 +61,16 @@ export const Herding = defineComponent({ herding: Types.ui8 })
 export const Territorial = defineComponent({ territorial: Types.ui8 })
 
 export const Hiding = defineComponent({ hiding: Types.ui8 })
+
+
+
+///////////// Terrin components ///////////////
+
+export const Deplacable = defineComponent({
+  deplacable: Types.ui8,
+  healRate: Types.ui8
+})
+
+export const Deplaced = defineComponent({
+  deplaced: Types.i8
+})

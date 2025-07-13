@@ -3,8 +3,8 @@ import XY from "../xy";
 import Level from "../level";
 import { DEBUG } from "../debug";
 import { Color } from "../../lib/rotjs";
-import { Controlled, Hiding, Movement } from "../components";
-import { hasComponent } from "bitecs";
+import { Controlled, Deplacable, Deplaced, Hiding, Movement } from "../components";
+import { addComponent, hasComponent } from "bitecs";
 import { relativePosition } from "../utils";
 import { Water } from "./terrain";
 import { MOVEMENT_DECREASE_IN_WATER } from "../constants";
@@ -45,7 +45,7 @@ export default class Dino extends Entity {
     if (DEBUG > 1) {
       return { ...visual, ch: this.kind[0] + this.dominance }
 
-    } else if (hasComponent(this.getLevel().ecsWorld, Hiding, this.id)) {
+    } else if (hasComponent(this.getLevel().dinoEcsWorld, Hiding, this.id)) {
       let fg = super.getVisual()!.fg
       let terrainFg = this.getLevel().map.at(this.getXY())!.getVisual().fg
       let darkened = Color.toHex(Color.interpolate(Color.fromString(fg), Color.fromString(terrainFg), 0.5))
@@ -69,11 +69,23 @@ export default class Dino extends Entity {
     const to_terrain = this.getLevel().map.at(this.getXY())
     this.getLevel().dinos.add(this);
 
+    if (!from_terrain || !to_terrain) {
+      console.warn("from", from_terrain, "to", to_terrain)
+      return
+    }
+
+    // changing speed when entering/exiting water
     if (from_terrain instanceof Water && !(to_terrain instanceof Water)) {
       Movement.turnsToSkip[this.id] -= MOVEMENT_DECREASE_IN_WATER
     }
     if (!(from_terrain instanceof Water) && to_terrain instanceof Water) {
       Movement.turnsToSkip[this.id] += MOVEMENT_DECREASE_IN_WATER
+    }
+
+    // displacment
+    if (hasComponent(this.getLevel().terrainEcsWorld, Deplacable, from_terrain.id)) {
+      addComponent(this.getLevel().terrainEcsWorld, Deplaced, from_terrain.id)
+      Deplaced.deplaced[from_terrain.id] = 100
     }
   }
 

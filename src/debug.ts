@@ -24,12 +24,15 @@ export function debug(level: MainLevel) {
     let terrain = level.map.at(xy)
     let dino = level.dinos.at(xy)
     if (dino) {
-      console.log(dino, getEntityComponents(level.ecsWorld, dino.id).reduce((acc: any[], c) => {
+      console.log(dino, getEntityComponents(level.dinoEcsWorld, dino.id).reduce((acc: any[], c) => {
         acc.push(Object.entries(c).flatMap(([k, v]) => `${k}: ${v[dino.id]}`).join(", "))
         return acc
       }, []))
     } else if (terrain) {
-      console.log(terrain)
+      console.log(terrain, getEntityComponents(level.terrainEcsWorld, terrain.id).reduce((acc: any[], c) => {
+        acc.push(Object.entries(c).flatMap(([k, v]) => `${k}: ${v[terrain.id]}`).join(", "))
+        return acc
+      }, []))
     }
   })
 

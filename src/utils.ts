@@ -93,6 +93,12 @@ export function withIn(bounds: Bounds, x: number, y: number) {
   return x >= bounds.x && x <= bounds.x + bounds.w && y >= bounds.y && y <= bounds.y + bounds.h
 }
 
-export function darken(color: string): string {
-  return Color.toHex(Color.multiply(Color.fromString("#555"), Color.fromString(color)))
+/**
+  * Darken color by amount
+  * Amount is a percent between 0 and 1
+  */
+export function darken(color: string, amount: number = 0.3): string {
+  if (amount < 0 || amount > 1) throw "Amount must be between 0 and 1"
+  let channel = Math.floor(amount * 255).toString(16)
+  return Color.toHex(Color.multiply(Color.fromString("#" + channel + channel + channel), Color.fromString(color)))
 }

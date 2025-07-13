@@ -133,7 +133,7 @@ export function keypressCb(this: MainLevel, key: string, keyUp = false) {
     switch (key) {
       case " ":
         Controlled.pressed[this.playerId] &= ~SPACE;
-        removeComponent(this.ecsWorld, Hiding, this.playerId)
+        removeComponent(this.dinoEcsWorld, Hiding, this.playerId)
         break;
       // TODO this doesn't work nicel if key is tapped between frames
       // instead track both downs and ups and clear downs after processed if up is logged
@@ -148,7 +148,7 @@ export function keypressCb(this: MainLevel, key: string, keyUp = false) {
   switch (key) {
     case " ":
       Controlled.pressed[this.playerId] |= SPACE;
-      addComponent(this.ecsWorld, Hiding, this.playerId)
+      addComponent(this.dinoEcsWorld, Hiding, this.playerId)
       break;
     case "ArrowUp": Controlled.pressed[this.playerId] |= DIRECTION_UP; break;
     case "ArrowRight": Controlled.pressed[this.playerId] |= DIRECTION_RIGHT; break;
