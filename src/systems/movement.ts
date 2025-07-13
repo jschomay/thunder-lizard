@@ -56,7 +56,7 @@ export default function movementSystem(world: ECSWorld) {
   for (let eid of pursueQuery(world)) {
 
     Movement.turnsSinceLastMove[eid] += 1
-    if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid] + 1) {
+    if (Movement.turnsSinceLastMove[eid] <= Movement.turnsToSkip[eid] + 1) {
       continue
     }
     Movement.turnsSinceLastMove[eid] = 0
@@ -68,7 +68,7 @@ export default function movementSystem(world: ECSWorld) {
   const fleeQuery = defineQuery([Movement, Flee, Not(Stunned)])
   for (let eid of fleeQuery(world)) {
     Movement.turnsSinceLastMove[eid] += 1
-    if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid]) {
+    if (Movement.turnsSinceLastMove[eid] <= Movement.turnsToSkip[eid]) {
       continue
     }
     Movement.turnsSinceLastMove[eid] = 0
@@ -90,7 +90,7 @@ function _handlePlayer(world: ECSWorld) {
   if (world.level.playerDino.dead) return
   const eid = world.level.playerId
   Movement.turnsSinceLastMove[eid] += 1
-  if (Movement.turnsSinceLastMove[eid] <= Movement.frequency[eid]) {
+  if (Movement.turnsSinceLastMove[eid] <= Movement.turnsToSkip[eid]) {
     return
   }
   Movement.turnsSinceLastMove[eid] = 0

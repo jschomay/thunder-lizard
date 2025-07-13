@@ -13,7 +13,7 @@ import { DEBUG, debug, debugLog } from "./debug";
 import Dino, { dinoKind } from "./entities/dino";
 import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
-import { MAP_SIZE, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
+import { MAP_SIZE, MOVEMENT_DECREASE_IN_WATER, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
 import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentType } from "bitecs";
@@ -50,18 +50,22 @@ export default class MainLevel {
     this.viewportOffset = new XY(MAP_SIZE / 3, MAP_SIZE / 3);
     this.scheduler = new ROT.Scheduler.Speed();
 
+    this._generateMap();
+
     this.ecsWorld = createWorld({ level: this })
     this.playerId = addEntity(this.ecsWorld)
     addComponent(this.ecsWorld, Controlled, this.playerId)
     addComponent(this.ecsWorld, Movement, this.playerId)
-    Movement.frequency[this.playerId] = 0
-    let xy = new XY(this.viewportOffset.x + this.viewportSize.x / 2, this.viewportOffset.y + this.viewportSize.y / 2)
-    this.playerDino = new Dino(this, xy, this.playerId, 2, "PREDATOR")
+    Movement.turnsToSkip[this.playerId] = 0
+    let playerStartingXY = new XY(this.viewportOffset.x + this.viewportSize.x / 2, this.viewportOffset.y + this.viewportSize.y / 2)
+    // starting in water starts slow
+    if (this.map.at(playerStartingXY) instanceof Terrain.Water) Movement.turnsToSkip[this.playerId] += MOVEMENT_DECREASE_IN_WATER
+    this.playerDino = new Dino(this, playerStartingXY, this.playerId, 2, "PREDATOR")
     this.playerDino.setVisual({ ch: "𑿋", fg: "yellow" })
     this.dinos.add(this.playerDino)
 
-    this._generateMap();
     this._generateMobs();
+
     this.drawMap()
 
     this.textBuffer = new TextBuffer(this.game);
@@ -524,13 +528,16 @@ export default class MainLevel {
       Awareness.accuracy[id] = 70
 
       addComponent(this.ecsWorld, Movement, id)
-      Movement.frequency[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
+      // TODO maybe set speed by level?
+      Movement.turnsToSkip[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
 
       for (let tag of tags) { addComponent(this.ecsWorld, tag, id) }
 
       // TODO keep adding components
 
       const position = selectedCoords.pop()!
+      // starting in water starts slow
+      if (this.map.at(position) instanceof Terrain.Water) Movement.turnsToSkip[id] += MOVEMENT_DECREASE_IN_WATER
       let d = new Dino(this, position, id, dominance, kind)
       this.dinos.add(d)
     }

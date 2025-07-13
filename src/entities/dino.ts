@@ -6,6 +6,8 @@ import { Color } from "../../lib/rotjs";
 import { Controlled, Hiding, Movement } from "../components";
 import { hasComponent } from "bitecs";
 import { relativePosition } from "../utils";
+import { Water } from "./terrain";
+import { MOVEMENT_DECREASE_IN_WATER } from "../constants";
 
 // const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
 // const visuals = ["➊", "➋", "➌", "➍", "➎", "➏"]
@@ -60,10 +62,19 @@ export default class Dino extends Entity {
 
 
   moveTo(xy: XY) {
+    const from_terrain = this.getLevel().map.at(this.getXY())
     Movement.direction[this.id] = relativePosition(this.getXY(), xy)
     this.getLevel().dinos.remove(this);
     this.setPosition(xy)
+    const to_terrain = this.getLevel().map.at(this.getXY())
     this.getLevel().dinos.add(this);
+
+    if (from_terrain instanceof Water && !(to_terrain instanceof Water)) {
+      Movement.turnsToSkip[this.id] -= MOVEMENT_DECREASE_IN_WATER
+    }
+    if (!(from_terrain instanceof Water) && to_terrain instanceof Water) {
+      Movement.turnsToSkip[this.id] += MOVEMENT_DECREASE_IN_WATER
+    }
   }
 
 }
