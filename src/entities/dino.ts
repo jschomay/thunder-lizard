@@ -39,7 +39,6 @@ export default class Dino extends Entity {
     }
 
     let visual = { ch: "X", fg: this.id === 0 ? playerColor : colors[this.dominance - 1] }
-    // visual.ch = this.dominance
     visual.ch = visuals[this.dominance - 1]
 
     if (DEBUG > 1) {

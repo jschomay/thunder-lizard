@@ -48,12 +48,12 @@ export default class MainLevel {
     this.game = game;
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
-    this.viewportSize = new XY(VIEWPORT_SIZE, VIEWPORT_SIZE);
+    this.viewportSize = new XY(0, 0);
+
     this.viewportOffset = new XY(MAP_SIZE / 3, MAP_SIZE / 3);
     this.scheduler = new ROT.Scheduler.Speed();
 
     this.terrainEcsWorld = createWorld({ level: this })
-    this._generateMap();
 
     this.dinoEcsWorld = createWorld({ level: this })
     this.playerId = addEntity(this.dinoEcsWorld)
@@ -64,9 +64,9 @@ export default class MainLevel {
     // starting in water starts slow
     if (this.map.at(playerStartingXY) instanceof Terrain.Water) Movement.turnsToSkip[this.playerId] += MOVEMENT_DECREASE_IN_WATER
     this.playerDino = new Dino(this, playerStartingXY, this.playerId, 2, "PREDATOR")
-    this.playerDino.setVisual({ ch: "𑿋", fg: "yellow" })
     this.dinos.add(this.playerDino)
 
+    this._generateMap();
     this._generateMobs();
 
     this.drawMap()
@@ -168,8 +168,17 @@ export default class MainLevel {
   }
 
   async mainLoop() {
+
+    console.log("viewportSize", this.viewportSize)
     const tickTimeMs = 100
     const loop = () => {
+      if (this.viewportSize.x <= VIEWPORT_SIZE) {
+        this.viewportSize.x += 4
+        this.viewportSize.y += 4
+        this.viewportOffset.x -= 2
+        this.viewportOffset.y -= 2
+        this.game.display.setOptions({ width: this.getSize().x, height: this.getSize().y });
+      }
       awarenessSystem(this.dinoEcsWorld)
       movementSystem(this.dinoEcsWorld)
       deplacementSystem(this.terrainEcsWorld)
