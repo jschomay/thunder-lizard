@@ -102,3 +102,14 @@ export function darken(color: string, amount: number = 0.3): string {
   let channel = Math.floor(amount * 255).toString(16)
   return Color.toHex(Color.multiply(Color.fromString("#" + channel + channel + channel), Color.fromString(color)))
 }
+
+
+/**
+  * Brighten color by amount
+  * Amount is a percent between 0 and 1
+  */
+export function brighten(color: string, amount: number = 0.3): string {
+  if (amount < 0 || amount > 1) throw "Amount must be between 0 and 1"
+  let channel = Math.floor(amount * 255).toString(16)
+  return Color.toHex(Color.add(Color.fromString("#" + channel + channel + channel), Color.fromString(color)))
+}

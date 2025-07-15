@@ -14,13 +14,17 @@ export default class WorldMap {
   size: XY;
   private _map: (Only<Terrain> | null)[][]
   private _indexed: IndexedMap = new Map()
+  private _ids: Map<number, Terrain>
 
 
   constructor(x: number, y: number) {
+    this._ids = new Map()
     this.size = new XY(x, y);
     this._map = Array.from(Array(x), () => Array(y).fill(null));
   }
 
+
+  getById(id: number): Terrain | undefined { return this._ids.get(id) }
 
   /**
    * Adds terrain to map at the entities position
@@ -33,6 +37,8 @@ export default class WorldMap {
     this.checkBounds(terrain.getXY())
     let { x, y } = terrain.getXY()
     this._map[x][y] = terrain;
+
+    this._ids.set(terrain.id, terrain)
 
     if (index) {
       let key = terrain.constructor as ConstructorOf<Terrain>
@@ -48,6 +54,7 @@ export default class WorldMap {
     let { x, y } = terrain.getXY()
     this._map[x][y] = null
     this.removeFromIndex(terrain)
+    this._ids.delete(terrain.id)
   }
 
   removeFromIndex(terrain: Terrain): void {

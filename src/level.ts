@@ -20,7 +20,7 @@ import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentTy
 import { Awareness, Controlled, Deplacable, Deplaced, Herding, Movement, Pursue, Territorial } from "./components";
 import movementSystem, { keypressCb as movementKeypressCb } from "./systems/movement";
 import Path from "./systems/path";
-import { darken, isValidPosition } from "./utils";
+import { brighten, darken, isValidPosition } from "./utils";
 import deplacementSystem from "./systems/displacement";
 
 export interface ECSWorld extends IWorld {
@@ -271,8 +271,7 @@ export default class MainLevel {
     if (entity instanceof Dino && entity.dead) bg = this.map.at(entity.getXY())!.getVisual().fg
     if (hasComponent(this.terrainEcsWorld, Deplaced, (entity as TerrainClass).id)) {
       // let amt = 1 - Deplaced.deplaced[(entity as TerrainClass).id] / 100
-      let amt = 0.7
-      fg = darken(fg, amt)
+      fg = (entity instanceof Terrain.Water) ? brighten(fg, 0.3) : darken(fg, 0.7)
     }
     this.game.display.draw(x, y, ch, fg, darken(bg));
   }
@@ -507,7 +506,7 @@ export default class MainLevel {
         }
         if (terrain_class === Terrain.Water) {
           addComponent(this.terrainEcsWorld, Deplacable, id)
-          Deplacable.healRate[id] = 8
+          Deplacable.healRate[id] = 10
         }
         // index everything for now
         let needsIndex = terrainMapping.includes(terrain_class)
