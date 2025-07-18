@@ -5,7 +5,6 @@ import { TerrainConstructor, Terrain as TerrainClass } from "./entities/terrain"
 import XY from "./xy";
 import Game from "./game";
 import TextBuffer from "./textbuffer"
-import { Color } from "../lib/rotjs";
 import * as ROT from "../lib/rotjs";
 import * as Terrain from "./entities/terrain";
 import WorldMap from "./map";
@@ -35,8 +34,8 @@ export default class MainLevel {
   dinos: Dinos
   scheduler: Scheduler;
   textBuffer: TextBuffer;
-  playerId: number
-  playerDino: Dino
+  playerId!: number
+  playerDino!: Dino
   game: Game
   terrainEcsWorld: ECSWorld
   dinoEcsWorld: ECSWorld
@@ -50,7 +49,6 @@ export default class MainLevel {
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
     this.viewportSize = new XY(0, 0);
 
-    this.viewportOffset = new XY(MAP_SIZE / 3, MAP_SIZE / 3);
     this.scheduler = new ROT.Scheduler.Speed();
 
     this.terrainEcsWorld = createWorld({ level: this })
@@ -60,10 +58,8 @@ export default class MainLevel {
     addComponent(this.dinoEcsWorld, Controlled, this.playerId)
     addComponent(this.dinoEcsWorld, Movement, this.playerId)
     Movement.turnsToSkip[this.playerId] = 0
-    let playerStartingXY = new XY(this.viewportOffset.x + this.viewportSize.x / 2, this.viewportOffset.y + this.viewportSize.y / 2)
-    // starting in water starts slow
-    if (this.map.at(playerStartingXY) instanceof Terrain.Water) Movement.turnsToSkip[this.playerId] += MOVEMENT_DECREASE_IN_WATER
-    this.playerDino = new Dino(this, playerStartingXY, this.playerId, 2, "PREDATOR")
+    // starting position gets set later in _generateMobs
+    this.playerDino = new Dino(this, new XY(), this.playerId, 2, "PREDATOR")
     this.dinos.add(this.playerDino)
 
     this._generateMap();
@@ -168,8 +164,6 @@ export default class MainLevel {
   }
 
   async mainLoop() {
-
-    console.log("viewportSize", this.viewportSize)
     const tickTimeMs = 100
     const loop = () => {
       if (this.viewportSize.x <= VIEWPORT_SIZE) {
@@ -522,7 +516,12 @@ export default class MainLevel {
 
     // sometimes the generator doesn't make any lava, so make sure
     if (this.map.getTagged(Terrain.Lava).size === 0) {
-      let lavaSeed = ROT.RNG.getItem([...this.map.getTagged(Terrain.Dirt)])?.getXY()
+      let lavaSource = this.map.getTagged(Terrain.Dirt)
+      if (!lavaSource.size) {
+        console.debug("No Dirt found for lava, using Grass instead")
+        lavaSource = this.map.getTagged(Terrain.Grass)
+      }
+      let lavaSeed = ROT.RNG.getItem([...lavaSource])?.getXY()
       if (lavaSeed) this.map.set(new Terrain.Lava(this, lavaSeed), true)
     }
 
@@ -531,7 +530,6 @@ export default class MainLevel {
 
   _generateMobs() {
     let terrainsWithMobs = [
-      Terrain.Dirt,
       Terrain.Grass,
       Terrain.Water,
       Terrain.Shrub,
@@ -544,14 +542,14 @@ export default class MainLevel {
     const BASE_OBSERVE_FREQUENCY = 3
     const BASE_OBSERVE_RANGE = 10
     const DEFAULT_MOVEMENT_FREQUENCY = 1
-    const selectedCoords = ROT.RNG.shuffle(validCoords).slice(0, NUM_DINOS)
+    const selectedCoords = ROT.RNG.shuffle(validCoords)
     const kinds: dinoKind[] = ROT.RNG.shuffle(["HERBIVORE", "HERBIVORE", "PREDATOR", "PREDATOR", "PREDATOR"])
 
     const countsPerLevel = (new Array(NUM_DINO_LEVELS)).fill(0)
       .map((_, i) => 0.5 + i / (NUM_DINO_LEVELS - 1))
       .map(n => Math.floor(n * NUM_DINOS / NUM_DINO_LEVELS))
 
-    const makeDino = (dominance: number, kind: dinoKind, tags: ComponentType<any>[]) => {
+    const makeNPCDino = (dominance: number, kind: dinoKind, tags: ComponentType<any>[]) => {
       let id = addEntity(this.dinoEcsWorld)
       addComponent(this.dinoEcsWorld, Awareness, id)
       Awareness.range[id] = BASE_OBSERVE_RANGE
@@ -572,7 +570,7 @@ export default class MainLevel {
       let d = new Dino(this, position, id, dominance, kind)
       this.dinos.add(d)
     }
-    const generatePerLevel = (level: number, populationRemaining: number) => {
+    const generateNPCDinosPerLevel = (level: number, populationRemaining: number) => {
       let numInLevel = countsPerLevel.shift()!
       let kind: dinoKind = "PREDATOR"
       if (level === NUM_DINO_LEVELS) {
@@ -599,12 +597,27 @@ export default class MainLevel {
       if (level <= 3) tags.push(Herding)
       if (level === 5) tags.push(Territorial)
 
-      for (let i = 0; i < numInLevel; i++) { makeDino(level, kind, tags) }
+      for (let i = 0; i < numInLevel; i++) { makeNPCDino(level, kind, tags) }
       debugLog(`Generated ${numInLevel} dinosaurs at level ${level} of kind ${kind}`)
 
-      if (level > 1) generatePerLevel(level - 1, populationRemaining - numInLevel)
+      if (level > 1) generateNPCDinosPerLevel(level - 1, populationRemaining - numInLevel)
     }
 
-    generatePerLevel(NUM_DINO_LEVELS, NUM_DINOS)
+    generateNPCDinosPerLevel(NUM_DINO_LEVELS, NUM_DINOS)
+
+    // make sure it is not on an island (check if it can reach the lava)
+    const targetXY = [...this.map.getTagged(Terrain.Lava)][0].getXY()
+    let passable = (x: number, y: number) => !(this.map.at(x, y) instanceof Terrain.Ocean)
+    let pathLen = 0
+    while (pathLen === 0 && selectedCoords.length > 0) {
+      let playerStartOption = selectedCoords.pop()!
+
+      let astar = new ROT.Path.AStar(targetXY.x, targetXY.y, passable, { topology: 4 });
+      astar.compute(playerStartOption.x, playerStartOption.y, () => pathLen += 1);
+      if (!pathLen) console.log("No path to lava")
+      if (!pathLen) continue
+      this.playerDino.moveTo(playerStartOption)
+      this.viewportOffset = this.playerDino.getXY().minus(this.viewportSize.div(2))
+    }
   }
 }

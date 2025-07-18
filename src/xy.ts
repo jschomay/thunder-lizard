@@ -33,4 +33,8 @@ export default class XY {
   minus(xy: XY) {
     return new XY(this.x - xy.x, this.y - xy.y);
   }
+
+  div(divisor: number) {
+    return new XY(this.x / divisor, this.y / divisor);
+  }
 }
