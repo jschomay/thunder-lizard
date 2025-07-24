@@ -1,6 +1,7 @@
 import * as ROT from "../lib/rotjs"
 import MainLevel from "./level"
 import StartScreen from "./start-screen"
+import XY from "./xy";
 
 export default class Game {
   level: MainLevel | StartScreen;
@@ -10,13 +11,15 @@ export default class Game {
   _container: HTMLElement
 
   constructor() {
-    const scalar = 50
-    let fontSize = window.innerWidth / scalar;
     window.addEventListener("resize", () => {
-      fontSize = window.innerWidth / scalar;
-      this.display.setOptions({ fontSize });
+      this.updateSize(this.level.getSize())
     })
-    this.display = new ROT.Display({ fontSize });
+    this.display = new ROT.Display({
+      forceSquareRatio: true,
+      fontFamily: "Sans-serif",
+      bg: "#111",
+      spacing: 0.9
+    });
     this._container = this.display.getContainer()!
     this._container.classList.add("max-h-screen", "max-w-full")
     document.body.appendChild(this._container);
@@ -24,7 +27,6 @@ export default class Game {
     // TODO only for debugging
     // let level = new MainLevel(this);
     let level = new StartScreen(this);
-    this.level = level;
     this.switchLevel(level);
 
     window.addEventListener("keydown", this.onKeyDown.bind(this));
@@ -53,18 +55,22 @@ export default class Game {
     this.level.onKeyUp(e);
   }
 
+  updateSize(size: XY) {
+    const scalar = 1.1
+    let h = this._container.parentElement!.offsetHeight
+    let fs = scalar * h / size.y
+    this.display.setOptions({
+      width: size.x,
+      height: size.y,
+      fontSize: fs
+    });
+  }
+
 
   switchLevel(level: MainLevel | StartScreen): void {
     this.level = level;
     let size = level.getSize();
-    this.display.setOptions({
-      width: size.x,
-      height: size.y,
-      forceSquareRatio: true,
-      fontFamily: "Sans-serif",
-      bg: "#111",
-      spacing: 0.9
-    });
+    this.updateSize(size)
 
     if (level instanceof MainLevel) {
 

@@ -47,7 +47,6 @@ export default class MainLevel {
     this.game = game;
     this.map = new WorldMap(MAP_SIZE, MAP_SIZE)
     this.dinos = new Dinos({ width: MAP_SIZE, height: MAP_SIZE })
-    this.viewportSize = new XY(0, 0);
 
     this.scheduler = new ROT.Scheduler.Speed();
 
@@ -63,24 +62,29 @@ export default class MainLevel {
     this.dinos.add(this.playerDino)
 
     this._generateMap();
-    this._generateMobs();
+    this._generateMobs(); // positions player dino
 
-    this.drawMap()
 
     this.textBuffer = new TextBuffer(this.game);
 
-    let size = this.getSize();
-    let bufferSize = 3;
-    this.textBuffer.configure({
-      position: new XY(0, 0),
-      size: new XY(size.x, bufferSize)
-    });
-    this.textBuffer.clear();
+    // TODO resize w/ map if needed
+    // let size = this.getSize();
+    // let bufferSize = 3;
+    // this.textBuffer.configure({
+    //   position: new XY(0, 0),
+    //   size: new XY(size.x, bufferSize)
+    // });
+    // this.textBuffer.clear();
 
 
-    if (DEBUG) {
-      debug(this)
-    }
+    if (DEBUG) { debug(this) }
+
+    const startingViewportSize = 6
+    this.viewportSize = new XY(startingViewportSize, startingViewportSize); // zoomed in
+    this.viewportOffset = this.playerDino.getXY().minus(this.viewportSize.div(2))
+    let targetSize = new XY(VIEWPORT_SIZE, VIEWPORT_SIZE)
+    let targetOffset = this.playerDino.getXY().minus(targetSize.div(2))
+    this.zoomOut(targetSize, targetOffset, (VIEWPORT_SIZE - startingViewportSize) / 2 / 2) // iterations needs to be a multiple of offset so that dOffset won't be a fraction (it gets rounded)
 
     this.waterLoop()
     this.lavaloop()
@@ -166,13 +170,6 @@ export default class MainLevel {
   async mainLoop() {
     const tickTimeMs = 100
     const loop = () => {
-      if (this.viewportSize.x <= VIEWPORT_SIZE) {
-        this.viewportSize.x += 4
-        this.viewportSize.y += 4
-        this.viewportOffset.x -= 2
-        this.viewportOffset.y -= 2
-        this.game.display.setOptions({ width: this.getSize().x, height: this.getSize().y });
-      }
       awarenessSystem(this.dinoEcsWorld)
       movementSystem(this.dinoEcsWorld)
       deplacementSystem(this.terrainEcsWorld)
@@ -225,30 +222,59 @@ export default class MainLevel {
   }
 
   handlePause(surpressZoom = false) {
-    let originalSize = this.getSize()
-    let originalOffset = this.viewportOffset
-
     if (this.paused) {
       this.paused(true)
       this.paused = null
       document.querySelector("#status")?.classList.add("hidden")
+      this.game.updateSize(this.getSize())
+      this.drawMap()
 
     } else {
+      let originalSize = this.getSize().div(1) // "clone"
+      let originalOffset = this.viewportOffset.div(1) // "clone"
       this.whenRunning = new Promise((resolve, reject) => this.paused = resolve)
+      this.whenRunning.then(() => {
+        this.zoomIn(originalSize, originalOffset, 3)
+      })
       document.querySelector("#status")!.innerHTML = "PAUSED"
       document.querySelector("#status")!.classList.remove("hidden")
-      if (!surpressZoom) {
-        this.viewportSize = this.map.size
-        this.viewportOffset = new XY(0, 0)
-      }
+      if (!surpressZoom) this.zoomOut(this.map.size, new XY(0, 0))
     }
+  }
 
-    let size = this.getSize();
-    this.game.display.setOptions({ width: size.x, height: size.y });
-    this.drawMap()
+  zoomOut(targetSize: XY, targetOffset: XY, iterations = 6) {
+    let dSize = targetSize.y - this.viewportSize.y // assumes square
+    let dOffset = this.viewportOffset.minus(targetOffset)
+    let dOX = dOffset.x / iterations
+    let dOY = dOffset.y / iterations
+    let dS = dSize / iterations
+    let f = () => {
+      this.viewportSize.x = Math.round(Math.min(targetSize.x, this.viewportSize.x + (dS)))
+      this.viewportSize.y = Math.round(Math.min(targetSize.y, this.viewportSize.y + (dS)))
+      this.viewportOffset.x = Math.round(Math.max((targetOffset.x), this.viewportOffset.x - (dOX)))
+      this.viewportOffset.y = Math.round(Math.max((targetOffset.y), this.viewportOffset.y - (dOY)))
+      this.game.updateSize(this.getSize())
+      this.drawMap()
+      if (this.viewportSize.y < targetSize.y) setTimeout(f, 70)
+    }
+    f()
+  }
 
-    this.viewportSize = originalSize
-    this.viewportOffset = originalOffset
+  zoomIn(targetSize: XY, targetOffset: XY, iterations = 8) {
+    let dSize = this.viewportSize.y - targetSize.y // assumes square
+    let dOffset = targetOffset.minus(this.viewportOffset)
+    let dO = dOffset.div(iterations)
+    let dS = dSize / iterations
+    let f = () => {
+      this.viewportSize.x = Math.round(Math.max(targetSize.x, this.viewportSize.x - dS))
+      this.viewportSize.y = Math.round(Math.max(targetSize.y, this.viewportSize.y - dS))
+      this.viewportOffset.x = Math.round(Math.min(targetOffset.x, this.viewportOffset.x + dO.x))
+      this.viewportOffset.y = Math.round(Math.min(targetOffset.y, this.viewportOffset.y + dO.y))
+      this.game.updateSize(this.getSize())
+      this.drawMap()
+      if (this.viewportSize.y > targetSize.y) setTimeout(f, 70)
+    }
+    f()
   }
 
 
@@ -617,7 +643,6 @@ export default class MainLevel {
       if (!pathLen) console.log("No path to lava")
       if (!pathLen) continue
       this.playerDino.moveTo(playerStartOption)
-      this.viewportOffset = this.playerDino.getXY().minus(this.viewportSize.div(2))
     }
   }
 }
