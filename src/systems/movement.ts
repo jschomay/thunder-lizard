@@ -30,17 +30,17 @@ export function removePursue(world: ECSWorld, id: number) {
   }
 }
 
-// const fleeFrequencyReduction = 1
+const fleeFrequencyReduction = 2
 export function addFlee(world: ECSWorld, id: number, dir: number) {
   addComponent(world, Flee, id)
   Flee.source[id] = dir
-  // Awareness.turnsToSkip[id] *= fleeFrequencyReduction
+  Awareness.turnsToSkip[id] *= fleeFrequencyReduction
 }
 
 export function removeFlee(world: ECSWorld, id: number) {
   if (hasComponent(world, Flee, id)) {
     removeComponent(world, Flee, id)
-    // Awareness.turnsToSkip[id] /= fleeFrequencyReduction
+    Awareness.turnsToSkip[id] /= fleeFrequencyReduction
   }
 }
 

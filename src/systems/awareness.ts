@@ -1,11 +1,12 @@
 import {
+  addComponent,
   defineQuery,
   hasComponent,
   Not,
   removeComponent
 } from 'bitecs'
 import { ECSWorld } from '../level'
-import { Awareness, Herding, Hiding, Pursue, Stunned, Territorial } from '../components'
+import { Awareness, Flee, Herding, Hiding, Pursue, Stunned, Territorial } from '../components'
 import { debugLog, debugLogNoisy } from '../debug'
 import { removePursue, removeFlee, addPursue, addFlee } from './movement'
 import * as ROT from '../../lib/rotjs'
@@ -44,7 +45,11 @@ export default function awarenessSystem(world: ECSWorld) {
     debugLogNoisy(eid, "------------------")
 
     // clear out any current behavior
-    removeFlee(world, selfDino.id)
+    if (hasComponent(world, Flee, selfDino.id)) {
+      removeFlee(world, selfDino.id)
+      // lose a beat after fleeing
+      continue
+    }
     removePursue(world, selfDino.id)
 
     let overrideScore = 0
@@ -59,16 +64,29 @@ export default function awarenessSystem(world: ECSWorld) {
 
     debugLogNoisy("scores for", eid, scores, overrideScore)
 
+    // no impulse
+    if (scores.reduce((a, b) => a + b) + overrideScore === 0) {
+      const center = world.level.getSize().div(2)
+      const dirToCenter = relativePosition(center, selfDino.getXY())
+      // most likely to go to center or nothing, but some randomness
+      const dir = ROT.RNG.getItem([0, 1, 2, 3, dirToCenter, -1, -1])!
+      if (dir >= 0) {
+        // using flee just to move around, not really "fleeing", may have undesired effects
+        addFlee(world, selfDino.id, dir)
+        console.log("going to wander", selfDino.id, dirToCenter)
+        continue
+      }
+    }
+
     if (overrideScore >= Math.max(...scores.map(Math.abs))) {
       if (foundPrey) {
         debugLogNoisy(selfDino.id, "going to pursue", foundPrey.id)
         addPursue(world, selfDino.id, foundPrey)
+        continue
       }
-      return world
     }
 
     const highestScoringDir = scores.reduce(([high, i], curV, curI) => Math.abs(curV) > Math.abs(high) ? [curV, curI] : [high, i], [0, 0])[1]
-    // NOTE do something random if score is 0?
     const dirScore = scores[highestScoringDir]
     if (dirScore < 0) {
       addFlee(world, selfDino.id, highestScoringDir)
@@ -118,8 +136,9 @@ function surveyQuadrants(self: Dino, world: ECSWorld) {
       //     dirScores[dir] += 2
       //   }
       // }
-      if (other.dominance === self.dominance && dist > 2) {
-        dirScores[dir] += 2
+      // all like kinds herd
+      if (other.dominance === self.dominance && dist > 4) {
+        dirScores[dir] += 1
       }
 
 

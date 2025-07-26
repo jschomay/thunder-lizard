@@ -581,7 +581,7 @@ export default class MainLevel {
       addComponent(this.dinoEcsWorld, Awareness, id)
       Awareness.range[id] = BASE_OBSERVE_RANGE
       Awareness.turnsToSkip[id] = BASE_OBSERVE_FREQUENCY
-      Awareness.accuracy[id] = 70
+      Awareness.accuracy[id] = 90
 
       addComponent(this.dinoEcsWorld, Movement, id)
       // TODO maybe set speed by level?
