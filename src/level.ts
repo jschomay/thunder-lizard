@@ -575,6 +575,7 @@ export default class MainLevel {
       .map((_, i) => 0.5 + i / (NUM_DINO_LEVELS - 1))
       .map(n => Math.floor(n * NUM_DINOS / NUM_DINO_LEVELS))
 
+    let zero = new XY(0, 0)
     const makeNPCDino = (dominance: number, kind: dinoKind, tags: ComponentType<any>[]) => {
       let id = addEntity(this.dinoEcsWorld)
       addComponent(this.dinoEcsWorld, Awareness, id)
@@ -590,10 +591,10 @@ export default class MainLevel {
 
       // TODO keep adding components
 
+      // starting at 0,0 then doing moveTo applies any terrain based effects
+      let d = new Dino(this, zero, id, dominance, kind)
       const position = selectedCoords.pop()!
-      // starting in water starts slow
-      if (this.map.at(position) instanceof Terrain.Water) Movement.turnsToSkip[id] += MOVEMENT_DECREASE_IN_WATER
-      let d = new Dino(this, position, id, dominance, kind)
+      d.moveTo(position)
       this.dinos.add(d)
     }
     const generateNPCDinosPerLevel = (level: number, populationRemaining: number) => {

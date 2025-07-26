@@ -8,7 +8,7 @@ import {
 
 import * as ROT from '../../lib/rotjs'
 import MainLevel, { ECSWorld } from '../level'
-import { Awareness, Controlled, Flee, Hiding, Movement, Pursue, Stunned } from '../components'
+import { Awareness, Controlled, Flee, Movement, Pursue, Stunned } from '../components'
 import { DEBUG, debugLogNoisy } from '../debug'
 import XY from '../xy'
 import Path from './path'
@@ -84,7 +84,7 @@ const DIRECTION_UP = parseInt('0001', 2);    // 1
 const DIRECTION_RIGHT = parseInt('0010', 2); // 2
 const DIRECTION_DOWN = parseInt('0100', 2);  // 4
 const DIRECTION_LEFT = parseInt('1000', 2);  // 8
-const SPACE = parseInt('10000', 2) // 16
+// const SPACE = parseInt('10000', 2) // 16
 
 function _handlePlayer(world: ECSWorld) {
   if (world.level.playerDino.dead) return
@@ -94,12 +94,12 @@ function _handlePlayer(world: ECSWorld) {
     return
   }
   Movement.turnsSinceLastMove[eid] = 0
-  if ((SPACE & Controlled.pressed[eid]) !== 0) {
-    // TODO when tracking downs and ups, reset here based on ups, for now reset all
-    // for now that means you can't hold multiple keys (like arrow and space then let go of space)
-    Controlled.pressed[eid] = 0
-    return // hiding; cant move
-  }
+  // if ((SPACE & Controlled.pressed[eid]) !== 0) {
+  // TODO when tracking downs and ups, reset here based on ups, for now reset all
+  // for now that means you can't hold multiple keys (like arrow and space then let go of space)
+  //   Controlled.pressed[eid] = 0
+  //   return // hiding; cant move
+  // }
   let dir = null
   if ((DIRECTION_UP & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][0];
   if ((DIRECTION_RIGHT & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][1];
@@ -131,10 +131,10 @@ function _handlePlayer(world: ECSWorld) {
 export function keypressCb(this: MainLevel, key: string, keyUp = false) {
   if (keyUp) {
     switch (key) {
-      case " ":
-        Controlled.pressed[this.playerId] &= ~SPACE;
-        removeComponent(this.dinoEcsWorld, Hiding, this.playerId)
-        break;
+      //   case " ":
+      //     Controlled.pressed[this.playerId] &= ~SPACE;
+      //     removeComponent(this.dinoEcsWorld, Hiding, this.playerId)
+      //     break;
       // TODO this doesn't work nicel if key is tapped between frames
       // instead track both downs and ups and clear downs after processed if up is logged
       // case "ArrowUp": Controlled.pressed[this.playerId] &= ~DIRECTION_UP; break;
@@ -146,10 +146,10 @@ export function keypressCb(this: MainLevel, key: string, keyUp = false) {
     return
   }
   switch (key) {
-    case " ":
-      Controlled.pressed[this.playerId] |= SPACE;
-      addComponent(this.dinoEcsWorld, Hiding, this.playerId)
-      break;
+    // case " ":
+    //   Controlled.pressed[this.playerId] |= SPACE;
+    //   addComponent(this.dinoEcsWorld, Hiding, this.playerId)
+    //   break;
     case "ArrowUp": Controlled.pressed[this.playerId] |= DIRECTION_UP; break;
     case "ArrowRight": Controlled.pressed[this.playerId] |= DIRECTION_RIGHT; break;
     case "ArrowDown": Controlled.pressed[this.playerId] |= DIRECTION_DOWN; break;

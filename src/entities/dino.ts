@@ -4,9 +4,9 @@ import Level from "../level";
 import { DEBUG } from "../debug";
 import { Color } from "../../lib/rotjs";
 import { Controlled, Deplacable, Deplaced, Hiding, Movement } from "../components";
-import { addComponent, hasComponent } from "bitecs";
+import { addComponent, hasComponent, removeComponent } from "bitecs";
 import { relativePosition } from "../utils";
-import { Water } from "./terrain";
+import { Jungle, Water } from "./terrain";
 import { MOVEMENT_DECREASE_IN_WATER } from "../constants";
 
 // const dinoCharMap = ROT.RNG.shuffle(['ي', 'ݎ', 'ࠀ', 'చ', 'ᠥ', '𐀔', '𐎥'])
@@ -47,7 +47,7 @@ export default class Dino extends Entity {
     } else if (hasComponent(this.getLevel().dinoEcsWorld, Hiding, this.id)) {
       let fg = super.getVisual()!.fg
       let terrainFg = this.getLevel().map.at(this.getXY())!.getVisual().fg
-      let darkened = Color.toHex(Color.interpolate(Color.fromString(fg), Color.fromString(terrainFg), 0.5))
+      let darkened = Color.toHex(Color.interpolate(Color.fromString(fg), Color.fromString(terrainFg), 0.8))
       return { ...visual, fg: darkened }
 
     } else {
@@ -80,6 +80,15 @@ export default class Dino extends Entity {
     if (!(from_terrain instanceof Water) && to_terrain instanceof Water) {
       Movement.turnsToSkip[this.id] += MOVEMENT_DECREASE_IN_WATER
     }
+
+    // hiding when moving in/out of jungle
+    if (from_terrain instanceof Jungle && !(to_terrain instanceof Jungle)) {
+      removeComponent(this.getLevel().dinoEcsWorld, Hiding, this.id)
+    }
+    if (!(from_terrain instanceof Jungle) && to_terrain instanceof Jungle) {
+      addComponent(this.getLevel().dinoEcsWorld, Hiding, this.id)
+    }
+
 
     // displacment
     if (hasComponent(this.getLevel().terrainEcsWorld, Deplacable, from_terrain.id)) {

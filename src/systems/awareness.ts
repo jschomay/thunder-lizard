@@ -172,7 +172,7 @@ function detectPrey(sortedNearestDinos: Dino[], selfDino: Dino): Dino | null {
 
 function seesDino(selfDino: Dino, otherDino: Dino): boolean {
   let accuracy = Awareness.accuracy[selfDino.id]
-  if (hasComponent(selfDino.getLevel().dinoEcsWorld, Hiding, otherDino.id)) accuracy *= 0.5
+  if (hasComponent(selfDino.getLevel().dinoEcsWorld, Hiding, otherDino.id)) accuracy = Math.max(10, accuracy - 30)
   // TODO hiding multiplier should be based on terrain under it
   return ROT.RNG.getPercentage() < accuracy
 }
