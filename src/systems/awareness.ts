@@ -73,7 +73,6 @@ export default function awarenessSystem(world: ECSWorld) {
       if (dir >= 0) {
         // using flee just to move around, not really "fleeing", may have undesired effects
         addFlee(world, selfDino.id, dir)
-        console.log("going to wander", selfDino.id, dirToCenter)
         continue
       }
     }

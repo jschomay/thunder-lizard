@@ -12,7 +12,7 @@ import { DEBUG, debug, debugLog } from "./debug";
 import Dino, { dinoKind } from "./entities/dino";
 import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
-import { MAP_SIZE, MOVEMENT_DECREASE_IN_WATER, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
+import { BASE_OBSERVE_FREQUENCY, BASE_OBSERVE_RANGE, MAP_SIZE, MOVEMENT_DECREASE_IN_WATER, MOVMENT_SPEED_BY_LEVEL, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
 import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentType } from "bitecs";
@@ -56,9 +56,10 @@ export default class MainLevel {
     this.playerId = addEntity(this.dinoEcsWorld)
     addComponent(this.dinoEcsWorld, Controlled, this.playerId)
     addComponent(this.dinoEcsWorld, Movement, this.playerId)
-    Movement.turnsToSkip[this.playerId] = 0
+    let startingDominance = 1
+    Movement.turnsToSkip[this.playerId] = MOVMENT_SPEED_BY_LEVEL[startingDominance]
     // starting position gets set later in _generateMobs
-    this.playerDino = new Dino(this, new XY(), this.playerId, 2, "PREDATOR")
+    this.playerDino = new Dino(this, new XY(), this.playerId, startingDominance, "PREDATOR")
     this.dinos.add(this.playerDino)
 
     this._generateMap();
@@ -111,7 +112,7 @@ export default class MainLevel {
   }
 
   lavaloop() {
-    const tickTimeMs = 70
+    const tickTimeMs = 50
     const loop = () => {
       // cellular automata lava "spread"
       // using spread operator to force Set iterator or this loop would be recursive
@@ -168,7 +169,7 @@ export default class MainLevel {
   }
 
   async mainLoop() {
-    const tickTimeMs = 100
+    const tickTimeMs = 70
     const loop = () => {
       awarenessSystem(this.dinoEcsWorld)
       movementSystem(this.dinoEcsWorld)
@@ -565,9 +566,6 @@ export default class MainLevel {
     let validCoords: XY[] = terrainsWithMobs.flatMap(
       (terrainClass: TerrainConstructor) => [...this.map.getTagged(terrainClass)].map((e: Entity) => e.getXY()))
 
-    const BASE_OBSERVE_FREQUENCY = 3
-    const BASE_OBSERVE_RANGE = 10
-    const DEFAULT_MOVEMENT_FREQUENCY = 1
     const selectedCoords = ROT.RNG.shuffle(validCoords)
     const kinds: dinoKind[] = ROT.RNG.shuffle(["HERBIVORE", "HERBIVORE", "PREDATOR", "PREDATOR", "PREDATOR"])
 
@@ -584,8 +582,7 @@ export default class MainLevel {
       Awareness.accuracy[id] = 90
 
       addComponent(this.dinoEcsWorld, Movement, id)
-      // TODO maybe set speed by level?
-      Movement.turnsToSkip[id] = DEFAULT_MOVEMENT_FREQUENCY || DEFAULT_MOVEMENT_FREQUENCY
+      Movement.turnsToSkip[id] = MOVMENT_SPEED_BY_LEVEL[dominance] || 1
 
       for (let tag of tags) { addComponent(this.dinoEcsWorld, tag, id) }
 

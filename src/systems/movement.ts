@@ -1,6 +1,7 @@
 import {
   addComponent,
   defineQuery,
+  getEntityComponents,
   hasComponent,
   Not,
   removeComponent,
@@ -14,6 +15,7 @@ import XY from '../xy'
 import Path from './path'
 import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
+import { MOVMENT_SPEED_BY_LEVEL } from '../constants'
 
 
 // const pursueFrequencyReduction = 2
@@ -114,13 +116,17 @@ function _handlePlayer(world: ECSWorld) {
 
   let dirXY = new XY(...dir!)
   const destination = world.level.playerDino.getXY().plus(dirXY)
-  // TODO check for eating dino
   let other = world.level.dinos.at(destination)
-  if (other && other.dominance < world.level.playerDino.dominance) {
-    removeComponent(world, Movement, other.id)
-    removeComponent(world, Awareness, other.id)
-    removeComponent(world, Controlled, other.id)
-    other.dead = true
+  let playerDino = world.level.playerDino
+  if (other && other.dominance <= playerDino.dominance) {
+    // TODO score
+    if (other.dominance === playerDino.dominance) {
+      // level up
+      playerDino.dominance += 1
+      Movement.turnsToSkip[playerDino.id] = MOVMENT_SPEED_BY_LEVEL[playerDino.dominance]
+      // TODO check for game win
+    }
+    other.kill(world)
     return
   }
   if (!isValidPosition(destination, world.level)) return
@@ -209,12 +215,17 @@ function _handlePursue(world: ECSWorld, id: number) {
     debugLogNoisy(selfDino.id, "reached prey", targetDino.id)
 
     // TODO add carcass component?
-    // TODO move this to a helper
-    removeComponent(world, Movement, targetId)
-    removeComponent(world, Awareness, targetId)
-    removeComponent(world, Controlled, targetId)
-    targetDino.dead = true
-    // TODO game over if player
+
+    if (targetDino.id === world.level.playerId) {
+      targetDino.dominance -= 1
+      if (targetDino.dominance === 0) {
+        targetDino.kill(world)
+        // TODO game over if player
+      }
+
+    } else {
+      targetDino.kill(world)
+    }
 
     removePursue(world, id)
     // rest after eating, based on how "heavy" the meal was

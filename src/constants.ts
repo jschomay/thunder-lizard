@@ -1,5 +1,8 @@
 export const MAP_SIZE = 300
-export const VIEWPORT_SIZE = 55
+export const VIEWPORT_SIZE = 45
 export const NUM_DINO_LEVELS = 5
 export const NUM_DINOS = 70
 export const MOVEMENT_DECREASE_IN_WATER = 2
+export const BASE_OBSERVE_FREQUENCY = 3
+export const BASE_OBSERVE_RANGE = 10
+export const MOVMENT_SPEED_BY_LEVEL: { [key: number]: number; } = { 1: 2, 2: 1, 3: 1, 4: 0, 5: 0 } // turns skipped

@@ -1,10 +1,10 @@
 import Entity from "../entity";
 import XY from "../xy";
-import Level from "../level";
+import Level, { ECSWorld } from "../level";
 import { DEBUG } from "../debug";
 import { Color } from "../../lib/rotjs";
 import { Controlled, Deplacable, Deplaced, Hiding, Movement } from "../components";
-import { addComponent, hasComponent, removeComponent } from "bitecs";
+import { addComponent, getEntityComponents, hasComponent, removeComponent } from "bitecs";
 import { relativePosition } from "../utils";
 import { Jungle, Water } from "./terrain";
 import { MOVEMENT_DECREASE_IN_WATER } from "../constants";
@@ -47,7 +47,8 @@ export default class Dino extends Entity {
     } else if (hasComponent(this.getLevel().dinoEcsWorld, Hiding, this.id)) {
       let fg = super.getVisual()!.fg
       let terrainFg = this.getLevel().map.at(this.getXY())!.getVisual().fg
-      let darkened = Color.toHex(Color.interpolate(Color.fromString(fg), Color.fromString(terrainFg), 0.8))
+      let darkenAmount = this.id === this.getLevel().playerId ? 0.5 : 0.8
+      let darkened = Color.toHex(Color.interpolate(Color.fromString(fg), Color.fromString(terrainFg), darkenAmount))
       return { ...visual, fg: darkened }
 
     } else {
@@ -57,6 +58,13 @@ export default class Dino extends Entity {
 
   getSpeed() {
     return this.dominance;
+  }
+
+  kill(world: ECSWorld) {
+    for (let component of getEntityComponents(world, this.id)) {
+      removeComponent(world, component, this.id)
+    }
+    this.dead = true
   }
 
 
