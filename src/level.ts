@@ -348,7 +348,7 @@ export default class MainLevel {
 
   drawSkeleton(d: Dino) {
     let dir = d.id % 4
-    let tailCh = "/"
+    let tailCh = ["/", "-", "\\", "-"][dir]
     let tailXY = new XY(...ROT.DIRS[4][dir])
     let tail = d.getXY().minus(tailXY)
     if (!(this.getEntity(tail.x, tail.y) instanceof Dino)) {
@@ -357,7 +357,7 @@ export default class MainLevel {
       this.game.display.draw(tail.x, tail.y, tailCh, d.getVisual().fg, bg);
     }
 
-    let headCh = "o"
+    let headCh = ["^", ">", "v", "<"][dir]
     let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
     let head = d.getXY().minus(headXY)
     if (!(this.getEntity(head.x, head.y) instanceof Dino)) {
