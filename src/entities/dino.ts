@@ -83,7 +83,8 @@ export default class Dino extends Entity {
 
     // changing speed when entering/exiting water
     if (from_terrain instanceof Water && !(to_terrain instanceof Water)) {
-      Movement.turnsToSkip[this.id] -= MOVEMENT_DECREASE_IN_WATER
+      // edge case when leveling up in water would make this "wrap around" to 256 (uint8), so clamp to 0
+      Movement.turnsToSkip[this.id] = Math.max(0, Movement.turnsToSkip[this.id] - MOVEMENT_DECREASE_IN_WATER)
     }
     if (!(from_terrain instanceof Water) && to_terrain instanceof Water) {
       Movement.turnsToSkip[this.id] += MOVEMENT_DECREASE_IN_WATER

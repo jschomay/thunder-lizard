@@ -15,7 +15,8 @@ import XY from '../xy'
 import Path from './path'
 import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
-import { MOVMENT_SPEED_BY_LEVEL } from '../constants'
+import { MOVEMENT_DECREASE_IN_WATER, MOVMENT_SPEED_BY_LEVEL } from '../constants'
+import { Water } from '../entities/terrain'
 
 
 // const pursueFrequencyReduction = 2
@@ -124,6 +125,9 @@ function _handlePlayer(world: ECSWorld) {
       // level up
       playerDino.dominance += 1
       Movement.turnsToSkip[playerDino.id] = MOVMENT_SPEED_BY_LEVEL[playerDino.dominance]
+      // adjust speed if eating in water
+      let t = world.level.map.at(playerDino.getXY())
+      if (t instanceof Water) Movement.turnsToSkip[playerDino.id] += MOVEMENT_DECREASE_IN_WATER
       // TODO check for game win
     }
     other.kill(world)
