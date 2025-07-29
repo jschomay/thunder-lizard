@@ -174,12 +174,35 @@ export default class MainLevel {
       awarenessSystem(this.dinoEcsWorld)
       movementSystem(this.dinoEcsWorld)
       deplacementSystem(this.terrainEcsWorld)
+      this.dynamicZoom()
+
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
     }
     loop()
   }
 
+  dynamicZoom() {
+    let range = 14
+    let numDinosNearPlayer = this.dinos.withIn({
+      x: this.playerDino.getXY().x - range / 2,
+      y: this.playerDino.getXY().y - range / 2,
+      w: range,
+      h: range
+    }).length
+    let zoomAmount = 6
+    if (numDinosNearPlayer > 2 && this.getSize().x === VIEWPORT_SIZE) {
+      let targetSize = new XY(VIEWPORT_SIZE - zoomAmount, VIEWPORT_SIZE - zoomAmount)
+      let targetOffset = this.playerDino.getXY().minus(targetSize.div(2))
+      let i = (zoomAmount / 2 / 2)
+      this.zoomIn(targetSize, targetOffset, i)
+    } else if (numDinosNearPlayer < 2 && this.getSize().x === VIEWPORT_SIZE - zoomAmount) {
+      let targetSize = new XY(VIEWPORT_SIZE, VIEWPORT_SIZE)
+      let targetOffset = this.playerDino.getXY().minus(targetSize.div(2))
+      let i = (zoomAmount / 2 / 2)
+      this.zoomOut(targetSize, targetOffset, i)
+    }
+  }
 
   // for mobile
   public onClick(e: MouseEvent) {
