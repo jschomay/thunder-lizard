@@ -1,3 +1,4 @@
+import { DEBUG } from "./debug";
 import { Terrain } from "./entities/terrain";
 import XY from "./xy";
 
@@ -34,7 +35,8 @@ export default class WorldMap {
   set(terrain: Terrain, index: boolean = false): void {
     if (!(terrain instanceof Terrain)) throw new Error("Only instances of Terrain allowed in World map, got " + terrain.constructor.name)
 
-    this.checkBounds(terrain.getXY())
+    let tXY = terrain.getXY()
+    if (this.isOutOfBounds(tXY)) throw `Terrain position (${tXY.x}, ${tXY.y}) is out of bounds when setting terrain`
     let { x, y } = terrain.getXY()
     this._map[x][y] = terrain;
 
@@ -66,7 +68,10 @@ export default class WorldMap {
   at(x: number, y: number): Terrain | null;
   at(xyOrX: XY | number, y?: number): Terrain | null {
     let xy = (typeof xyOrX === "number" && typeof y === "number") ? new XY(xyOrX, y) : xyOrX as XY
-    this.checkBounds(xy)
+    if (this.isOutOfBounds(xy)) {
+      if (DEBUG) console.warn(`Tried to get terrain at out of bounds position (${xy.x}, ${xy.y})`)
+      return null
+    }
     return this._map[xy.x][xy.y];
   }
 
@@ -84,8 +89,8 @@ export default class WorldMap {
     return (this._indexed.get(constructor) || new Set()) as Set<T>;
   }
 
-  private checkBounds({ x, y }: XY): void {
-    if (x < 0 || y < 0 || x >= this.size.x || y >= this.size.y) throw `Terrain position (${x}, ${y}) is out of bounds`
+  private isOutOfBounds({ x, y }: XY): boolean {
+    return x < 0 || y < 0 || x >= this.size.x || y >= this.size.y
   }
 
 }

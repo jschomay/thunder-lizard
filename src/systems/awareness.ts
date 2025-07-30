@@ -104,6 +104,7 @@ function surveyQuadrants(self: Dino, world: ECSWorld) {
   // NOTE Recursive shadow casting would be better, better but it doubles up on the 45° lines
   // could do a unique check, but PreciseShadowcasting works just fine (hit range is a square not a circle but that's ok)
   const range = Awareness.range[self.id]
+  // this is to catch if range wraps to 255 (uint8)
   if (range > 20) throw new Error(self.id + " Awareness range too high" + range)
   let dirScores = [0, 0, 0, 0]
   let dir = 0
@@ -164,7 +165,7 @@ function detectPrey(sortedNearestDinos: Dino[], selfDino: Dino): Dino | null {
     // find first viable dino in observation range
     const dist = selfDino.getXY().dist(prey.getXY())
     // Predators have longer range when hunting
-    if (dist > Awareness.range[selfDino.id] * 2) break // no prey in sight
+    if (dist > Awareness.range[selfDino.id] * 3) break // no prey in sight
     if (prey.dominance >= selfDino.dominance) continue
     if (!target) {
       target = prey
