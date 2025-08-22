@@ -56,7 +56,7 @@ export default class MainLevel {
     this.playerId = addEntity(this.dinoEcsWorld)
     addComponent(this.dinoEcsWorld, Controlled, this.playerId)
     addComponent(this.dinoEcsWorld, Movement, this.playerId)
-    let startingDominance = 1
+    let startingDominance = 5
     Movement.turnsToSkip[this.playerId] = MOVMENT_SPEED_BY_LEVEL[startingDominance]
     // starting position gets set later in _generateMobs
     this.playerDino = new Dino(this, new XY(), this.playerId, startingDominance, "PREDATOR")
@@ -317,7 +317,7 @@ export default class MainLevel {
       // let amt = 1 - Deplaced.deplaced[(entity as TerrainClass).id] / 100
       fg = (entity instanceof Terrain.Water) ? brighten(fg, 0.3) : darken(fg, 0.7)
     }
-    this.game.display.draw(x, y, ch, fg, darken(bg));
+    this.game.display.draw(x, y, ch, bg, (bg));
   }
 
   /**
@@ -344,6 +344,7 @@ export default class MainLevel {
         }
       }
     }
+    this.game.postprocess()
   }
 
   drawSkeleton(d: Dino) {
