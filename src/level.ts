@@ -317,7 +317,9 @@ export default class MainLevel {
       // let amt = 1 - Deplaced.deplaced[(entity as TerrainClass).id] / 100
       fg = (entity instanceof Terrain.Water) ? brighten(fg, 0.3) : darken(fg, 0.7)
     }
-    this.game.display.draw(x, y, ch, bg, (bg));
+    this.game.display.draw(x, y, ch, fg, darken(bg));
+    // for ai procesing
+    this.game.blockDisplay.draw(x, y, ch, bg, bg);
   }
 
   /**

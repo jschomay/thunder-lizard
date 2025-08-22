@@ -4,13 +4,14 @@ import StartScreen from "./start-screen"
 import XY from "./xy";
 import { fal } from "@fal-ai/client";
 
+// NOTE use proxyauth if deployed
 fal.config({
   credentials: "KEYHERE",
 });
 
 
 let throttle = 0
-let sourceCanvas, targetCanvas, preview
+let targetCanvas, preview
 const scaledCanvas = document.createElement("canvas");
 const scaledCanvasCtx = scaledCanvas.getContext("2d");
 scaledCanvas.width = 512;
@@ -35,7 +36,19 @@ export default class Game {
     });
     this._container = this.display.getContainer() as HTMLCanvasElement
     this._container.classList.add("w-[512px]", "h-[512px]")
+    // this._container.style.display = "none"
     document.body.appendChild(this._container);
+
+    // used to render block image for ai processing
+    this.blockDisplay = new ROT.Display({
+      forceSquareRatio: true,
+      fontFamily: "Sans-serif",
+      bg: "#111",
+      spacing: 0.9
+    });
+    this._blockContainer = this.blockDisplay.getContainer() as HTMLCanvasElement
+    this._blockContainer.classList.add("w-[512px]", "h-[512px]")
+    // document.body.appendChild(this._blockContainer);
 
     // TODO only for debugging
     // let level = new MainLevel(this);
@@ -48,12 +61,11 @@ export default class Game {
       this._container.addEventListener("touchstart", this.onClick.bind(this));
     }
 
-    this.aiRenderCanvas = this._container.cloneNode() as HTMLCanvasElement
-    this.aiRenderCanvas.className = this._container.className
+    this.aiRenderCanvas = this._blockContainer.cloneNode() as HTMLCanvasElement
+    this.aiRenderCanvas.className = this._blockContainer.className
     this.aiRenderCanvas.width = 512
     this.aiRenderCanvas.height = 512
     this._container.after(this.aiRenderCanvas);
-    sourceCanvas = this._container
     targetCanvas = this.aiRenderCanvas
     preview = new Image();
     // this._container.after(preview);
@@ -63,7 +75,7 @@ export default class Game {
 
   postprocess() {
     throttle++
-    if (throttle < 2) {
+    if (throttle < 1) {
       return
     }
     throttle = 0
@@ -71,8 +83,7 @@ export default class Game {
     // this.done = true
 
     if (!this._container) return
-    // TODO the window.devicePixelRatio is 2 so this is 1024 instead of 512
-    scaledCanvasCtx.drawImage(this._container, 0, 0, 512, 512);
+    scaledCanvasCtx.drawImage(this._blockContainer, 0, 0, 512, 512);
     const dataURL = scaledCanvas.toDataURL();
     renderFrame(dataURL)
   }
@@ -101,6 +112,11 @@ export default class Game {
     let h = this._container.parentElement!.offsetHeight
     let fs = scalar * h / size.y
     this.display.setOptions({
+      width: size.x,
+      height: size.y,
+      fontSize: fs
+    });
+    this.blockDisplay.setOptions({
       width: size.x,
       height: size.y,
       fontSize: fs
@@ -149,7 +165,7 @@ export default class Game {
 }
 
 
-// ws approach (doesn't work with lcm-sd15-i2i model though)
+// ws approach - works with this model
 const connection = fal.realtime.connect("fal-ai/fast-lcm-diffusion/image-to-image", {
   onResult: (result) => {
     // console.log(result);
@@ -199,6 +215,42 @@ function renderFrame(imageData: string) {
 
 
 
+// // high quality but slow model (ws don't work)
+// async function renderFrame(inputImageData: string) {
+//   const result = await fal.subscribe("fal-ai/flux-lora/image-to-image", {
+//     input: {
+//       prompt: "tl_rpg (water, flowing lava, trees, circles are dinosaurs)",
+//       num_inference_steps: 28,
+//       guidance_scale: 6,
+//       num_images: 2,
+//       enable_safety_checker: true,
+//       output_format: "jpeg",
+//       image_url: inputImageData,
+//       strength: 0.6,
+//       image_size: "square",
+//       loras: [{
+//         path: "https://v3.fal.media/files/kangaroo/XqIOrVuQfd5bzybQezeGq_pytorch_lora_weights.safetensors",
+//         scale: 2
+//       }],
+//       seed: 5494350,
+//       enable_safety_checks: false,
+//       sync_mode: true
+//     },
+//     logs: false,
+//   });
+//   // console.log(result.data);
+//   const outputImageDataUrl = result.data.images[0].url
+//   preview.onload = () => {
+//     const ctx = targetCanvas.getContext("2d")!;
+//     ctx.drawImage(preview, 0, 0);
+//     // cleanup the temp URL once drawn
+//     // URL.revokeObjectURL(url);
+//   };
+//   preview.src = outputImageDataUrl;
+// }
+
+
+// via sd15 (not as good and ws not working)
 // async function renderFrame(inputImageData: string) {
 //   const result = await fal.subscribe("fal-ai/lcm-sd15-i2i", {
 //     input: {
