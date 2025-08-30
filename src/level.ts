@@ -276,7 +276,7 @@ export default class MainLevel {
 
   setScore(score: number) {
     this.score += score
-    document.querySelector("#score")!.innerHTML = "SCORE: " + this.score
+    document.querySelector("#score")!.innerHTML = "LEVEL: " + this.playerDino.dominance + " -- SCORE: " + this.score
   }
 
   setGameOver() {

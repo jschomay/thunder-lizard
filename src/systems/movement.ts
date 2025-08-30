@@ -199,6 +199,7 @@ function _handlePursue(world: ECSWorld, id: number) {
 
     if (targetDino.id === world.level.playerId) {
       targetDino.dominance -= 1
+      world.level.setScore(-1000)
       if (targetDino.dominance === 0) {
         targetDino.kill(world)
         world.level.setGameOver()
