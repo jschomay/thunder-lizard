@@ -1,7 +1,7 @@
-export const MAP_SIZE = 300
+export const MAP_SIZE = 250
 export const VIEWPORT_SIZE = 45
 export const NUM_DINO_LEVELS = 5
-export const NUM_DINOS = 70
+export const NUM_DINOS = 60
 export const MOVEMENT_DECREASE_IN_WATER = 2
 export const BASE_OBSERVE_FREQUENCY = 3
 export const BASE_OBSERVE_RANGE = 10

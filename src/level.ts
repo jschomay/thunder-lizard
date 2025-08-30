@@ -602,6 +602,10 @@ export default class MainLevel {
         console.debug("No Dirt found for lava, using Grass instead")
         lavaSource = this.map.getTagged(Terrain.Grass)
       }
+      if (!lavaSource.size) {
+        console.debug("No Grass found either, using shrub instead")
+        lavaSource = this.map.getTagged(Terrain.Shrub)
+      }
       let lavaSeed = ROT.RNG.getItem([...lavaSource])?.getXY()
       if (lavaSeed) this.map.set(new Terrain.Lava(this, lavaSeed), true)
     }
