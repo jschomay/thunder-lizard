@@ -68,6 +68,7 @@ export default class MainLevel {
     this._generateMobs(); // positions player dino
 
 
+    this.setScore(0)
     this.textBuffer = new TextBuffer(this.game);
 
     // TODO resize w/ map if needed
@@ -150,8 +151,8 @@ export default class MainLevel {
             // need to kil off dinos too
             let dino = this.dinos.at(l.getXY())
             if (dino) {
-              // TODO game over if player
-              this.dinos.remove(dino)
+              dino.kill(this.dinoEcsWorld)
+              if (dino === this.playerDino) this.setGameOver()
             }
           }
         }
@@ -223,6 +224,11 @@ export default class MainLevel {
 
 
   onKeyDown(e: KeyboardEvent) {
+    if (this.playerDino.dead && e.key === " ") {
+      window.location.reload()
+      return
+    }
+
     if (this.paused && e.key.toLowerCase() !== "p") { return }
 
     this.textBuffer.clear()
@@ -252,7 +258,7 @@ export default class MainLevel {
     if (this.paused) {
       this.paused(true)
       this.paused = null
-      document.querySelector("#status")?.classList.add("hidden")
+      document.querySelector("#paused")?.classList.add("hidden")
       this.game.updateSize(this.getSize())
       this.drawMap()
 
@@ -263,10 +269,18 @@ export default class MainLevel {
       this.whenRunning.then(() => {
         this.zoomIn(originalSize, originalOffset, 3)
       })
-      document.querySelector("#status")!.innerHTML = "PAUSED"
-      document.querySelector("#status")!.classList.remove("hidden")
+      document.querySelector("#paused")!.classList.remove("hidden")
       if (!surpressZoom) this.zoomOut(this.map.size, new XY(0, 0))
     }
+  }
+
+  setScore(score: number) {
+    this.score += score
+    document.querySelector("#score")!.innerHTML = "SCORE: " + this.score
+  }
+
+  setGameOver() {
+    document.querySelector("#game-over")!.classList.remove("hidden")
   }
 
   zoomOut(targetSize: XY, targetOffset: XY, iterations = 6) {
@@ -335,8 +349,6 @@ export default class MainLevel {
       d.dead ? this.drawSkeleton(d) : this.drawDino(d)
       if (hasComponent(this.dinoEcsWorld, Score, d.id)) this.drawScore(d)
     }
-
-    this.game.display.drawText(1, 1, "%c{orange}SCORE: " + this.score)
 
     if (DEBUG > 1) {
       for (let d of this.dinos.withIn(this.getViewport())) {

@@ -136,7 +136,7 @@ function _handlePlayer(world: ECSWorld) {
     score *= levelUpMultiplier
     Score.amount[other.id] = score
     Score.duration[other.id] = SCORE_DURATION
-    world.level.score += score
+    world.level.setScore(score)
     return
   }
   if (!isValidPosition(destination, world.level)) return
@@ -201,7 +201,7 @@ function _handlePursue(world: ECSWorld, id: number) {
       targetDino.dominance -= 1
       if (targetDino.dominance === 0) {
         targetDino.kill(world)
-        // TODO game over if player
+        world.level.setGameOver()
       }
 
     } else {

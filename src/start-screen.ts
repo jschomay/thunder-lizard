@@ -33,7 +33,10 @@ export default class StartScreen {
     this.onKeyDown(new KeyboardEvent("keydown", { 'key': 'Enter' }))
   }
 
+  onKeyUp(e: KeyboardEvent): void { }
+
   onKeyDown(e: KeyboardEvent): void {
+    if (e.key !== " ") return
     clearInterval(this._interval)
     this.game.switchLevel(new MainLevel(this.game))
   }
@@ -102,7 +105,7 @@ export default class StartScreen {
 
   _drawMap() {
     let titleMap = this._levelData.split("\n")
-    let titleOffsetX = Math.ceil((this.size.x - titleMap[0].length ) / 2)
+    let titleOffsetX = Math.ceil((this.size.x - titleMap[0].length) / 2)
     let titleOffsetY = 13
     for (let row = 0; row < this.size.y; row++) {
       for (let col = 0; col < this.size.x; col++) {

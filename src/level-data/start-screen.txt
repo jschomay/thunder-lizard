@@ -25,7 +25,7 @@
    
                         Eat or be eaten.
    
-                    Press any key to hatch...                                        
+                    Press Space bar to hatch...                                        
                                                                                                               
 
 
