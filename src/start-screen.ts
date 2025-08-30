@@ -30,7 +30,8 @@ export default class StartScreen {
 
   // for mobile
   onClick(e: MouseEvent) {
-    this.onKeyDown(new KeyboardEvent("keydown", { 'key': 'Enter' }))
+    clearInterval(this._interval)
+    this.game.switchLevel(new MainLevel(this.game))
   }
 
   onKeyUp(e: KeyboardEvent): void { }

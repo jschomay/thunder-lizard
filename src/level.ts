@@ -210,6 +210,10 @@ export default class MainLevel {
 
   // for mobile
   public onClick(e: MouseEvent) {
+    if (this.playerDino.dead) {
+      window.location.reload()
+      return
+    }
     this.textBuffer.clear()
 
     if (this.textBuffer.showing) {
