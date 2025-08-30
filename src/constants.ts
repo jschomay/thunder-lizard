@@ -6,3 +6,4 @@ export const MOVEMENT_DECREASE_IN_WATER = 2
 export const BASE_OBSERVE_FREQUENCY = 3
 export const BASE_OBSERVE_RANGE = 10
 export const MOVMENT_SPEED_BY_LEVEL: { [key: number]: number; } = { 1: 2, 2: 1, 3: 1, 4: 0, 5: 0 } // turns skipped
+export const SCORE_DURATION = 30

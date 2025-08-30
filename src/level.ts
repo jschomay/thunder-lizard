@@ -12,15 +12,16 @@ import { DEBUG, debug, debugLog } from "./debug";
 import Dino, { dinoKind } from "./entities/dino";
 import Dinos from "./dinos";
 import { Rectangle } from "@timohausmann/quadtree-ts";
-import { BASE_OBSERVE_FREQUENCY, BASE_OBSERVE_RANGE, MAP_SIZE, MOVEMENT_DECREASE_IN_WATER, MOVMENT_SPEED_BY_LEVEL, NUM_DINO_LEVELS, NUM_DINOS, VIEWPORT_SIZE } from "./constants";
+import { BASE_OBSERVE_FREQUENCY, BASE_OBSERVE_RANGE, MAP_SIZE, MOVMENT_SPEED_BY_LEVEL, NUM_DINO_LEVELS, NUM_DINOS, SCORE_DURATION, VIEWPORT_SIZE } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
 import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentType } from "bitecs";
-import { Awareness, Controlled, Deplacable, Deplaced, Herding, Movement, Pursue, Territorial } from "./components";
+import { Awareness, Controlled, Deplacable, Deplaced, Herding, Score, Movement, Pursue, Territorial } from "./components";
 import movementSystem, { keypressCb as movementKeypressCb } from "./systems/movement";
 import Path from "./systems/path";
-import { brighten, darken, isValidPosition } from "./utils";
+import { brighten, darken } from "./utils";
 import deplacementSystem from "./systems/displacement";
+import scoreSystem from "./systems/score";
 
 export interface ECSWorld extends IWorld {
   level: MainLevel;
@@ -37,6 +38,7 @@ export default class MainLevel {
   playerId!: number
   playerDino!: Dino
   game: Game
+  score: number = 0
   terrainEcsWorld: ECSWorld
   dinoEcsWorld: ECSWorld
   paused: null | ((value: any) => void) = null // pause check and call to resume
@@ -174,6 +176,7 @@ export default class MainLevel {
       awarenessSystem(this.dinoEcsWorld)
       movementSystem(this.dinoEcsWorld)
       deplacementSystem(this.terrainEcsWorld)
+      scoreSystem(this.dinoEcsWorld)
       this.dynamicZoom()
 
       this.drawMap()
@@ -330,7 +333,11 @@ export default class MainLevel {
     }
     for (let d of this.dinos.withIn(this.getViewport())) {
       d.dead ? this.drawSkeleton(d) : this.drawDino(d)
+      if (hasComponent(this.dinoEcsWorld, Score, d.id)) this.drawScore(d)
     }
+
+    this.game.display.drawText(1, 1, "%c{orange}SCORE: " + this.score)
+
     if (DEBUG > 1) {
       for (let d of this.dinos.withIn(this.getViewport())) {
         if (hasComponent(this.dinoEcsWorld, Pursue, d.id)) {
@@ -343,6 +350,18 @@ export default class MainLevel {
           }
         }
       }
+    }
+  }
+
+  drawScore(d: Dino) {
+    let score = Score.amount[d.id]
+    let s = d.getXY().minus(this.viewportOffset)
+    let text = "+" + Score.amount[d.id]
+    let x = s.x - Math.floor(text.length / 2)
+    let y = s.y - 3
+    let color = darken("orange", Score.duration[d.id] / SCORE_DURATION)
+    for (let i = 0; i < text.length; i++) {
+      this.game.display.drawOver(x + i, y, text[i], color)
     }
   }
 

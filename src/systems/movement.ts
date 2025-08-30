@@ -1,7 +1,6 @@
 import {
   addComponent,
   defineQuery,
-  getEntityComponents,
   hasComponent,
   Not,
   removeComponent,
@@ -9,13 +8,13 @@ import {
 
 import * as ROT from '../../lib/rotjs'
 import MainLevel, { ECSWorld } from '../level'
-import { Awareness, Controlled, Flee, Movement, Pursue, Stunned } from '../components'
+import { Awareness, Controlled, Flee, Score, Movement, Pursue, Stunned } from '../components'
 import { DEBUG, debugLogNoisy } from '../debug'
 import XY from '../xy'
 import Path from './path'
 import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
-import { MOVEMENT_DECREASE_IN_WATER, MOVMENT_SPEED_BY_LEVEL } from '../constants'
+import { MOVEMENT_DECREASE_IN_WATER, MOVMENT_SPEED_BY_LEVEL, SCORE_DURATION } from '../constants'
 import { Water } from '../entities/terrain'
 
 
@@ -119,11 +118,13 @@ function _handlePlayer(world: ECSWorld) {
   const destination = world.level.playerDino.getXY().plus(dirXY)
   let other = world.level.dinos.at(destination)
   let playerDino = world.level.playerDino
-  if (other && other.dominance <= playerDino.dominance) {
-    // TODO score
+  if (other && !other.dead && other.dominance <= playerDino.dominance) {
+    let score = other.dominance * playerDino.dominance * 100
+    let levelUpMultiplier = 1
+    // check level up
     if (other.dominance === playerDino.dominance) {
-      // level up
       playerDino.dominance += 1
+      levelUpMultiplier = 10
       Movement.turnsToSkip[playerDino.id] = MOVMENT_SPEED_BY_LEVEL[playerDino.dominance]
       // adjust speed if eating in water
       let t = world.level.map.at(playerDino.getXY())
@@ -131,6 +132,11 @@ function _handlePlayer(world: ECSWorld) {
       // TODO check for game win
     }
     other.kill(world)
+    addComponent(world, Score, other.id)
+    score *= levelUpMultiplier
+    Score.amount[other.id] = score
+    Score.duration[other.id] = SCORE_DURATION
+    world.level.score += score
     return
   }
   if (!isValidPosition(destination, world.level)) return

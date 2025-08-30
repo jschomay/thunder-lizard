@@ -3,7 +3,7 @@ import MainLevel from "./level"
 import XY from "./xy"
 import { FPS } from 'yy-fps'
 
-export const DEBUG = 1
+export const DEBUG = 0
 export function debug(level: MainLevel) {
   // level.player.setPosition(new XY(99, 30))
 

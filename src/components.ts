@@ -64,7 +64,7 @@ export const Hiding = defineComponent({ hiding: Types.ui8 })
 
 
 
-///////////// Terrin components ///////////////
+///////////// Terrain components ///////////////
 
 export const Deplacable = defineComponent({
   deplacable: Types.ui8,
@@ -73,4 +73,13 @@ export const Deplacable = defineComponent({
 
 export const Deplaced = defineComponent({
   deplaced: Types.i8
+})
+
+
+///////////// Other ///////////////
+
+
+export const Score = defineComponent({
+  amount: Types.ui16,
+  duration: Types.ui8,
 })
