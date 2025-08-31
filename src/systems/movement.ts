@@ -108,7 +108,13 @@ function _handlePlayer(world: ECSWorld) {
   if ((DIRECTION_DOWN & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][2];
   if ((DIRECTION_LEFT & Controlled.pressed[eid]) !== 0) dir = ROT.DIRS[4][3];
 
-  if (!dir) return
+  let steps = world.level.game.sounds.steps
+  let playerSteps = world.level.game.soundIds.playerSteps
+  if (!dir) {
+    steps.fade(0.2, 0, 0.2, playerSteps)
+    return
+  }
+  steps.fade(steps.volume(playerSteps) as number, 0.2, 0.3, playerSteps)
 
   // TODO when tracking downs and ups, reset here based on ups, for now reset all
   // for now that means you can't hold multiple keys (like arrow and space then let go of space)
@@ -123,6 +129,7 @@ function _handlePlayer(world: ECSWorld) {
     let levelUpMultiplier = 1
     // check level up
     if (other.dominance === playerDino.dominance) {
+      world.level.game.sounds.growl3.play()
       playerDino.dominance += 1
       levelUpMultiplier = 10
       Movement.turnsToSkip[playerDino.id] = MOVMENT_SPEED_BY_LEVEL[playerDino.dominance]
@@ -130,6 +137,8 @@ function _handlePlayer(world: ECSWorld) {
       let t = world.level.map.at(playerDino.getXY())
       if (t instanceof Water) Movement.turnsToSkip[playerDino.id] += MOVEMENT_DECREASE_IN_WATER
       // TODO check for game win
+    } else {
+      world.level.game.sounds.growl4.play()
     }
     other.kill(world)
     addComponent(world, Score, other.id)
@@ -202,6 +211,8 @@ function _handlePursue(world: ECSWorld, id: number) {
       world.level.setScore(-1000)
       if (targetDino.dominance === 0) {
         targetDino.kill(world)
+        world.level.game.sounds.hero.play()
+        world.level.game.sounds.steps.stop(world.level.game.soundIds.playerSteps)
         world.level.setGameOver()
       }
 

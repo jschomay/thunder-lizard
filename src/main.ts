@@ -1,72 +1,91 @@
 import './style.css'
 import Game from './game'
+import { Howl, Howler, HowlOptions } from 'howler';
 
 
+const sounds = [
 
-window.addEventListener("load", loadNoMusic);
-function loadNoMusic(e) {
+  {
+    src: ['bg.mp3'],
+    loop: true,
+    volume: 0.1
+  },
+  {
+    src: ['steps.mp3'],
+    loop: true,
+    volume: 0,
+    rate: 1.5,
+  },
+  {
+    src: ['drums.mp3'],
+    loop: true,
+    volume: 0.2,
+  },
+  {
+    src: ['hero.mp3'],
+    loop: false,
+    volume: 0.2,
+  },
+  {
+    src: ['growl1.mp3'],
+    loop: false,
+    volume: 0.5,
+  },
+  {
+    src: ['growl2.mp3'],
+    loop: false,
+    volume: 0.5,
+  },
+  {
+    src: ['growl3.mp3'],
+    loop: false,
+    volume: 0.8,
+  },
+  {
+    src: ['growl4.mp3'],
+    loop: false,
+    volume: 0.6,
+  },
+]
+
+window.addEventListener("load", load);
+function load(e) {
   if (e.type !== "load") return
-  document.querySelector("#status")?.classList.add("hidden", "absolute", "top-32", "z-10")
-  new Game()
-  return
+
+  Promise.all(sounds.map(loadSound))
+    // make sure these matcht the order of sounds config
+    .then(([bg, steps, drums, hero, growl1, growl2, growl3, growl4]) => {
+      document.querySelector("#status")?.classList.add("hidden", "absolute", "top-32", "z-10")
+      let g = new Game()
+      g.sounds.steps = steps
+      g.sounds.drums = drums
+      g.sounds.hero = hero
+      g.sounds.growl1 = growl1
+      g.sounds.growl2 = growl2
+      g.sounds.growl3 = growl3
+      g.sounds.growl4 = growl4
+      g.soundIds.playerSteps = steps.play()
+      g.soundIds.other1Steps = steps.play()
+      g.soundIds.other2Steps = steps.play()
+      steps.seek(0.5, g.soundIds.other1Steps).rate(1.5, g.soundIds.other1Steps)
+      steps.seek(1.0, g.soundIds.other2Steps).rate(1, g.soundIds.other2Steps)
+      bg.play()
+      drums.play()
+    })
 }
 
 
-function handleEvent(e: Event) {
-  switch (e.type) {
-    case "load":
-      launch(null).catch((e) => {
-        // you can load audio here (with mp3 fallback)
-        // don't need for now and might switch to howler anyway
-        console.error(e);
-        if (e.message.includes("Decoding")) {
-          console.error(e)
-          launch(null).catch((e) => showError(e.message))
-        } else {
-          showError(e.message)
-        }
-      })
-  }
-  window.removeEventListener("load", handleEvent);
-}
-
-function showError(msg) {
-  document.body.innerHTML = `
-    <p>I'm sorry, there's been some trouble loading the sound file. If you see this, please try running it in a different browser.  Also, you can leave a comment with the error: "${msg}"</p>
-    `
-}
-
-
-const audioCtx = new AudioContext();
-
-async function launch(file) {
-  return loadFile(file).then((track) => {
-    document.querySelector("p")?.remove()
-    new Game(() => startBgMusic(track))
+function loadSound(config: HowlOptions): Promise<Howl> {
+  return new Promise((resolve, reject) => {
+    var sound = new Howl({
+      onplayerror: function (id, error) {
+        reject(new Error('Error playing sound!' + error))
+      },
+      onload: function () {
+        resolve(sound)
+      },
+      ...config
+    });
   })
 }
 
-async function loadFile(filepath) {
-  const response = await fetch(filepath);
-  const arrayBuffer = await response.arrayBuffer();
-  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-  return audioBuffer;
-}
-
-function playTrack(audioBuffer) {
-  const trackSource = audioCtx.createBufferSource();
-  trackSource.buffer = audioBuffer;
-  trackSource.connect(audioCtx.destination);
-  trackSource.start();
-  trackSource.loop = true;
-  return trackSource;
-}
-
-function startBgMusic(track) {
-  // Check if context is in suspended state (autoplay policy)
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-
-  playTrack(track);
-}

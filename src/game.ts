@@ -4,9 +4,11 @@ import StartScreen from "./start-screen"
 import XY from "./xy";
 
 export default class Game {
-  level: MainLevel | StartScreen;
+  level!: MainLevel | StartScreen;
   display: ROT.Display;
   HANDLED_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "w", "a", "s", "d", "Enter", "Escape", " "];
+  sounds: Record<string, Howl> = {};
+  soundIds: Record<string, number> = {};
 
   _container: HTMLElement
 

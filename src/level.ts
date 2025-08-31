@@ -90,6 +90,8 @@ export default class MainLevel {
     let targetOffset = this.playerDino.getXY().minus(targetSize.div(2))
     this.zoomOut(targetSize, targetOffset, (VIEWPORT_SIZE - startingViewportSize) / 2 / 2) // iterations needs to be a multiple of offset so that dOffset won't be a fraction (it gets rounded)
 
+    this.game.sounds.hero.play()
+
     this.waterLoop()
     this.lavaloop()
     this.mainLoop()
@@ -148,11 +150,13 @@ export default class MainLevel {
             // TODO should probably call remove or die on n (animation system will keep animating it)
             // or bulk remove from quadtree
 
-            // need to kil off dinos too
             let dino = this.dinos.at(l.getXY())
             if (dino) {
               dino.kill(this.dinoEcsWorld)
-              if (dino === this.playerDino) this.setGameOver()
+              if (dino === this.playerDino) {
+                this.game.sounds.hero.play()
+                this.setGameOver()
+              }
             }
           }
         }
@@ -179,6 +183,7 @@ export default class MainLevel {
       deplacementSystem(this.terrainEcsWorld)
       scoreSystem(this.dinoEcsWorld)
       this.dynamicZoom()
+      this.dinoSfx()
 
       this.drawMap()
       setTimeout(() => this.whenRunning.then(loop), tickTimeMs)
@@ -188,24 +193,48 @@ export default class MainLevel {
 
   dynamicZoom() {
     let range = 14
-    let numDinosNearPlayer = this.dinos.withIn({
+    let nearDinos = this.dinos.withIn({
       x: this.playerDino.getXY().x - range / 2,
       y: this.playerDino.getXY().y - range / 2,
       w: range,
       h: range
-    }).length
+    }).filter(d => !d.dead)
+    let numDinosNearPlayer = nearDinos.length
+    if (numDinosNearPlayer > 2 && ROT.RNG.getPercentage() < 10) {
+      ROT.RNG.getPercentage() % 2 === 0
+        ? this.game.sounds.growl1.play()
+        : this.game.sounds.growl2.play()
+    }
+
+
     let zoomAmount = 6
     if (numDinosNearPlayer > 2 && this.getSize().x === VIEWPORT_SIZE) {
       let targetSize = new XY(VIEWPORT_SIZE - zoomAmount, VIEWPORT_SIZE - zoomAmount)
       let targetOffset = this.playerDino.getXY().minus(targetSize.div(2))
       let i = (zoomAmount / 2 / 2)
       this.zoomIn(targetSize, targetOffset, i)
+      this.game.sounds.drums.fade(0.2, 0.5, 1)
+
     } else if (numDinosNearPlayer < 2 && this.getSize().x === VIEWPORT_SIZE - zoomAmount) {
       let targetSize = new XY(VIEWPORT_SIZE, VIEWPORT_SIZE)
       let targetOffset = this.playerDino.getXY().minus(targetSize.div(2))
       let i = (zoomAmount / 2 / 2)
       this.zoomOut(targetSize, targetOffset, i)
+      this.game.sounds.drums.fade(0.5, 0.2, 1)
     }
+  }
+
+  dinoSfx() {
+    let nearDinos = this.dinos.nearest(this.playerDino.getXY()).filter(d => d !== this.playerDino && !d.dead)
+    this.game.sounds.steps.volume(0, this.game.soundIds.other1Steps)
+    this.game.sounds.steps.volume(0, this.game.soundIds.other2Steps)
+    let range = 15
+    let d1 = Math.max(0, 1 - nearDinos[0].getXY().dist(this.playerDino.getXY()) / range)
+    this.game.sounds.steps.volume(d1 * 0.4, this.game.soundIds.other1Steps)
+
+    if (nearDinos.length < 2 || nearDinos[1].dead) return
+    let d2 = Math.max(0, 1 - nearDinos[1].getXY().dist(this.playerDino.getXY()) / range)
+    this.game.sounds.steps.volume(d2 * 0.3, this.game.soundIds.other2Steps)
   }
 
   // for mobile
@@ -267,6 +296,7 @@ export default class MainLevel {
       this.drawMap()
 
     } else {
+      this.game.sounds.steps.volume(0)
       let originalSize = this.getSize().div(1) // "clone"
       let originalOffset = this.viewportOffset.div(1) // "clone"
       this.whenRunning = new Promise((resolve, reject) => this.paused = resolve)
