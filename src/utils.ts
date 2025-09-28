@@ -3,6 +3,7 @@ import MainLevel from "./level";
 import XY from "./xy";
 import { Bounds } from '../src/dinos.ts'
 import { Color } from "../lib/rotjs/index";
+import Dino from "./entities/dino.ts";
 
 /**
  * Returns the degrees between two points in terms of a compass
@@ -73,15 +74,17 @@ export function relativePositionAlternative(xy1: XY, xy2: XY) {
 
 /** No dino and no dangerous terrain in target
   */
-export function isValidPosition(xy: XY, level: MainLevel) {
+export function isValidPosition(xy: XY, dino: Dino) {
+  let level = dino.getLevel()
   let d = level.dinos.at(xy)
-  return !d && isValidTerrain(xy, level)
+  return !d && isValidTerrain(xy, dino)
 }
 
-export function isValidTerrain(xy: XY, level: MainLevel) {
+export function isValidTerrain(xy: XY, dino: Dino) {
+  let level = dino.getLevel()
   let t = level.map.at(xy)
   return true
-    && !(t instanceof Terrain.Ocean)
+    && (!(t instanceof Terrain.Ocean) || dino.dominance > 5)
     && !(t instanceof Terrain.Lava)
 }
 
@@ -112,4 +115,8 @@ export function brighten(color: string, amount: number = 0.3): string {
   if (amount < 0 || amount > 1) throw "Amount must be between 0 and 1"
   let channel = Math.floor(amount * 255).toString(16)
   return Color.toHex(Color.add(Color.fromString("#" + channel + channel + channel), Color.fromString(color)))
+}
+
+export function waterOrOcean(t: Terrain.Terrain) {
+  return t instanceof Terrain.Water || t instanceof Terrain.Ocean
 }

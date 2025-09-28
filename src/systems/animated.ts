@@ -26,3 +26,7 @@ export const add = (e: Entity) => {
 export const remove = (e: Entity) => {
   _qt.remove(e);
 }
+
+export const clear = () => {
+  _qt.clear();
+}

@@ -14,8 +14,8 @@ import XY from '../xy'
 import Path from './path'
 import { isValidPosition, isValidTerrain, relativePosition } from '../utils'
 import Dino from '../entities/dino'
-import { MOVEMENT_DECREASE_IN_WATER, MOVMENT_SPEED_BY_LEVEL, SCORE_DURATION } from '../constants'
-import { Water } from '../entities/terrain'
+import { MAP_SIZE, MOVEMENT_DECREASE_IN_WATER, MOVMENT_SPEED_BY_LEVEL, SCORE_DURATION } from '../constants'
+import { Ocean, Water } from '../entities/terrain'
 
 
 // const pursueFrequencyReduction = 2
@@ -136,7 +136,7 @@ function _handlePlayer(world: ECSWorld) {
       // adjust speed if eating in water
       let t = world.level.map.at(playerDino.getXY())
       if (t instanceof Water) Movement.turnsToSkip[playerDino.id] += MOVEMENT_DECREASE_IN_WATER
-      // TODO check for game win
+      if (playerDino.dominance === 6) world.level.playerWin = 1
     } else {
       world.level.game.sounds.growl4.play()
     }
@@ -148,9 +148,23 @@ function _handlePlayer(world: ECSWorld) {
     world.level.setScore(score)
     return
   }
-  if (!isValidPosition(destination, world.level)) return
+  if (!isValidPosition(destination, world.level.playerDino)) return
   world.level.playerDino.moveTo(destination)
-  world.level.viewportOffset = world.level.viewportOffset.plus(dirXY)
+
+  // only move viewport if player is not near edge
+  if (
+    playerDino.getXY().x > Math.floor(world.level.viewportSize.x / 2) &&
+    playerDino.getXY().x < MAP_SIZE - Math.floor(world.level.viewportSize.x / 2)
+  ) world.level.viewportOffset.x += dirXY.x
+  if (
+    playerDino.getXY().y > Math.floor(world.level.viewportSize.y / 2) &&
+    playerDino.getXY().y < MAP_SIZE - Math.floor(world.level.viewportSize.y / 2)
+  ) world.level.viewportOffset.y += dirXY.y
+
+  if (playerDino.getXY().x <= 0 || playerDino.getXY().y <= 0 || playerDino.getXY().x >= MAP_SIZE - 1 || playerDino.getXY().y >= MAP_SIZE - 1) {
+    world.level.game.sounds.hero.play()
+    world.level.doWinState()
+  }
 }
 
 export function keypressCb(this: MainLevel, key: string, keyUp = false) {
@@ -225,7 +239,7 @@ function _handlePursue(world: ECSWorld, id: number) {
     addComponent(world, Stunned, id)
     Stunned.duration[id] = Math.max(1, targetDino.dominance) * 5
 
-  } else if (isValidPosition(nextCoord, world.level)) {
+  } else if (isValidPosition(nextCoord, selfDino)) {
     // move closer (if able)
     selfDino.moveTo(nextCoord)
 
@@ -245,7 +259,7 @@ function _calculatePath(selfDino: Dino, target: Dino, topology: 4 | 8 = 8) {
     xy.y = y
     // only want to check terrain and dead dinos when making a path (to avoid expensive pathfinding)
     // when following the path we MUST make sure it is valid (since the terrain or dino positions can change)
-    return isValidTerrain(xy, selfDino.getLevel()) && !selfDino.getLevel().dinos.at(xy)?.dead
+    return isValidTerrain(xy, selfDino) && !selfDino.getLevel().dinos.at(xy)?.dead
   }
 
   var astar = new ROT.Path.AStar(target.getXY().x, target.getXY().y, passableCallback, { topology });
@@ -266,13 +280,13 @@ function _handleFlee(world: ECSWorld, id: number) {
   let dir = Flee.source[id]
   let oppositeDirection = (dir + 2) % 4
   let escape = selfDino.getXY().plus(new XY(...ROT.DIRS[4][oppositeDirection]))
-  if (isValidPosition(escape, world.level)) {
+  if (isValidPosition(escape, selfDino)) {
     selfDino.moveTo(escape)
   } else {
     // try to go adjacent
     let adjacent = ROT.DIRS[4][Math.abs(oppositeDirection + ROT.RNG.getItem([1, -1])!) % 4]
     let otherEscape = selfDino.getXY().plus(new XY(...adjacent))
-    if (isValidPosition(otherEscape, world.level)) selfDino.moveTo(otherEscape)
+    if (isValidPosition(otherEscape, selfDino)) selfDino.moveTo(otherEscape)
   }
 
 }

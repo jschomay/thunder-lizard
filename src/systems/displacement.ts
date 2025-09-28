@@ -2,7 +2,9 @@ import { defineQuery, removeComponent, hasComponent, addComponent } from "bitecs
 import { ECSWorld } from "../level"
 import { Deplacable, Deplaced } from "../components"
 import XY from "../xy"
-import { Water } from "../entities/terrain"
+import { Ocean, Water } from "../entities/terrain"
+import { MAP_SIZE } from "../constants"
+import { waterOrOcean } from "../utils"
 
 export default function deplacementSystem(world: ECSWorld) {
 
@@ -24,9 +26,12 @@ export default function deplacementSystem(world: ECSWorld) {
     ]
 
     for (let neighborXY of neighborXYs) {
+      if (neighborXY.x < 0 || neighborXY.y < 0 || neighborXY.x > MAP_SIZE || neighborXY.y > MAP_SIZE) continue
       let neighborEntity = world.level.map.at(neighborXY)
-      if (currentDisplacementAmount > 0
-        && neighborEntity instanceof Water
+      if (neighborEntity
+        && (waterOrOcean(neighborEntity))
+        && currentDisplacementAmount > 0
+        && hasComponent(world, Deplacable, neighborEntity.id)
         && !hasComponent(world, Deplaced, neighborEntity.id)) {
         addComponent(world, Deplaced, neighborEntity.id)
         Deplaced.deplaced[neighborEntity.id] = Math.floor(currentDisplacementAmount / 4)

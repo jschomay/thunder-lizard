@@ -15,13 +15,14 @@ import { Rectangle } from "@timohausmann/quadtree-ts";
 import { BASE_OBSERVE_FREQUENCY, BASE_OBSERVE_RANGE, MAP_SIZE, MOVMENT_SPEED_BY_LEVEL, NUM_DINO_LEVELS, NUM_DINOS, SCORE_DURATION, VIEWPORT_SIZE } from "./constants";
 import * as Animated from "./systems/animated";
 import awarenessSystem from "./systems/awareness";
-import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentType } from "bitecs";
+import { createWorld, addEntity, IWorld, addComponent, hasComponent, ComponentType, removeComponent, deleteWorld } from "bitecs";
 import { Awareness, Controlled, Deplacable, Deplaced, Herding, Score, Movement, Pursue, Territorial } from "./components";
 import movementSystem, { keypressCb as movementKeypressCb } from "./systems/movement";
 import Path from "./systems/path";
-import { brighten, darken } from "./utils";
+import { brighten, darken, waterOrOcean } from "./utils";
 import deplacementSystem from "./systems/displacement";
 import scoreSystem from "./systems/score";
+import winScreen from "./level-data/win-screen.txt?raw";
 
 export interface ECSWorld extends IWorld {
   level: MainLevel;
@@ -41,6 +42,8 @@ export default class MainLevel {
   score: number = 0
   terrainEcsWorld: ECSWorld
   dinoEcsWorld: ECSWorld
+  playerWin: number = 0
+  showingWinScreen = false
   paused: null | ((value: any) => void) = null // pause check and call to resume
   whenRunning: Promise<any> = Promise.resolve()
   private _fovCells: XY[] = []
@@ -79,7 +82,6 @@ export default class MainLevel {
     //   size: new XY(size.x, bufferSize)
     // });
     // this.textBuffer.clear();
-
 
     if (DEBUG) { debug(this) }
 
@@ -123,7 +125,7 @@ export default class MainLevel {
       // using spread operator to force Set iterator or this loop would be recursive
       for (let lava of [...this.map.getTagged(Terrain.Lava)]) {
         // high tick and high chance to skip makes lava spread look "smoother"
-        if (ROT.RNG.getPercentage() < 90) continue
+        if (ROT.RNG.getPercentage() < (this.playerWin ? 0 : 90)) continue
         // TODO move to lava.act OR treat as component
         // TODO ultimately needs to return terrain, items and mobs - items and mobs get destroyed
         let { x, y } = lava.getXY()
@@ -226,6 +228,7 @@ export default class MainLevel {
 
   dinoSfx() {
     let nearDinos = this.dinos.nearest(this.playerDino.getXY()).filter(d => d !== this.playerDino && !d.dead)
+    if (nearDinos.length === 0) return
     this.game.sounds.steps.volume(0, this.game.soundIds.other1Steps)
     this.game.sounds.steps.volume(0, this.game.soundIds.other2Steps)
     let range = 15
@@ -257,8 +260,15 @@ export default class MainLevel {
 
 
   onKeyDown(e: KeyboardEvent) {
-    if (this.playerDino.dead && e.key === " ") {
-      window.location.reload()
+    if (["x"].includes(e.key)) {
+      this.playerDino.dominance = 6
+      this.playerWin = 1
+      // this.doWinState()
+    }
+
+
+    if (this.showingWinScreen || this.playerDino.dead) {
+      if (e.key === " ") window.location.reload()
       return
     }
 
@@ -366,7 +376,7 @@ export default class MainLevel {
     if (entity instanceof Dino && entity.dead) bg = this.map.at(entity.getXY())!.getVisual().fg
     if (hasComponent(this.terrainEcsWorld, Deplaced, (entity as TerrainClass).id)) {
       // let amt = 1 - Deplaced.deplaced[(entity as TerrainClass).id] / 100
-      fg = (entity instanceof Terrain.Water) ? brighten(fg, 0.3) : darken(fg, 0.7)
+      fg = (entity instanceof Terrain.Water || entity instanceof Terrain.Ocean) ? brighten(fg, 0.3) : darken(fg, 0.7)
     }
     this.game.display.draw(x, y, ch, fg, darken(bg));
   }
@@ -439,14 +449,16 @@ export default class MainLevel {
     let headCh = ["⏶", "⏵", "⏷", "⏴"][dir]
     let headXY = new XY(...ROT.DIRS[4][(dir + 2) % 4])
     let head = d.getXY().minus(headXY)
-    let bg = darken(this.map.at(head)?.getVisual().fg!)
-    if (!(this.getEntity(head.x, head.y) instanceof Dino)) {
+    let h = this.map.at(head)?.getVisual()?.fg
+    if (h && !(this.getEntity(head.x, head.y) instanceof Dino)) {
+      let bg = darken(h)
       head = head.minus(this.viewportOffset)
       this.game.display.draw(head.x, head.y, headCh, d.getVisual().fg, bg);
     }
 
     // Only head and body show in water
-    if (this.map.at(d.getXY().x, d.getXY().y) instanceof Terrain.Water) return
+    let terrain = this.map.at(d.getXY().x, d.getXY().y)
+    if (terrain && waterOrOcean(terrain)) return
 
 
     if (!hasComponent(this.dinoEcsWorld, Movement, d.id)) return
@@ -454,8 +466,9 @@ export default class MainLevel {
     let tailChAlt = ["↲", "↜", "↱", "↝"][dir]
     let tailXY = new XY(...ROT.DIRS[4][dir])
     let tail = d.getXY().minus(tailXY)
-    if (!(this.getEntity(tail.x, tail.y) instanceof Dino)) {
-      bg = darken(this.map.at(tail)?.getVisual().fg!)
+    let t = this.map.at(tail)?.getVisual().fg!
+    if (t && !(this.getEntity(tail.x, tail.y) instanceof Dino)) {
+      let bg = darken(t)
       tail = tail.minus(this.viewportOffset)
       let ch = ROT.RNG.getPercentage() < 20 ? tailChAlt : tailCh
       this.game.display.draw(tail.x, tail.y, ch, d.getVisual().fg, bg);
@@ -468,8 +481,9 @@ export default class MainLevel {
     let legCh = dir % 2 ? legChs[frame] : legChs[1 - frame]
     let rLegXY = new XY(...ROT.DIRS[4][(dir + 1) % 4])
     let rLeg = d.getXY().minus(rLegXY)
-    if (!(this.getEntity(rLeg.x, rLeg.y) instanceof Dino)) {
-      bg = darken(this.map.at(rLeg)?.getVisual().fg!)
+    let rl = this.map.at(rLeg)?.getVisual().fg!
+    if (rl && !(this.getEntity(rLeg.x, rLeg.y) instanceof Dino)) {
+      let bg = darken(rl)
       rLeg = rLeg.minus(this.viewportOffset)
       this.game.display.draw(rLeg.x, rLeg.y, legCh, d.getVisual().fg, bg);
     }
@@ -477,8 +491,9 @@ export default class MainLevel {
 
     let lLegXY = new XY(...ROT.DIRS[4][(dir + 3) % 4])
     let lLeg = d.getXY().minus(lLegXY)
-    if (!(this.getEntity(lLeg.x, lLeg.y) instanceof Dino)) {
-      bg = darken(this.map.at(lLeg)?.getVisual().fg!)
+    let ll = this.map.at(lLeg)?.getVisual().fg!
+    if (ll && !(this.getEntity(lLeg.x, lLeg.y) instanceof Dino)) {
+      let bg = darken(ll)
       lLeg = lLeg.minus(this.viewportOffset)
       this.game.display.draw(lLeg.x, lLeg.y, legCh, d.getVisual().fg, bg);
     }
@@ -617,6 +632,10 @@ export default class MainLevel {
           addComponent(this.terrainEcsWorld, Deplacable, id)
           Deplacable.healRate[id] = 10
         }
+        if (terrain_class === Terrain.Ocean) {
+          addComponent(this.terrainEcsWorld, Deplacable, id)
+          Deplacable.healRate[id] = 10
+        }
         // index everything for now
         let needsIndex = terrainMapping.includes(terrain_class)
         this.map.set(e, needsIndex)
@@ -733,6 +752,121 @@ export default class MainLevel {
       if (!pathLen) console.log("No path to lava")
       if (!pathLen) continue
       this.playerDino.moveTo(playerStartOption)
+    }
+  }
+
+  doWinState() {
+    this.showingWinScreen = true
+    this.whenRunning = Promise.reject()
+    this.dinos.clear()
+    this.map.clear()
+    this.viewportSize = new XY(75, 45)
+    this.viewportOffset = new XY(0, 0)
+    this.game.updateSize(this.getSize())
+    deleteWorld(this.dinoEcsWorld)
+    deleteWorld(this.terrainEcsWorld)
+    this.dinoEcsWorld = createWorld({ level: this })
+    this.terrainEcsWorld = createWorld({ level: this })
+
+    this.playerDino.id = addEntity(this.dinoEcsWorld)
+    addComponent(this.dinoEcsWorld, Movement, this.playerDino.id)
+    Movement.direction[this.playerDino.id] = 2
+    this.playerId = this.playerDino.id
+
+    this.makeWinMap()
+    // make wake
+    // this.playerDino.moveTo(new XY(35, 1))
+    this.playerDino.moveTo(new XY(35, 0))
+    this.waterLoop()
+
+    document.querySelector("#win")?.classList.remove("hidden")
+
+    const tickTimeMs = 70
+    let frame = 0
+    const loop = () => {
+      frame++
+      deplacementSystem(this.terrainEcsWorld)
+      this.drawWinMap()
+
+      let y = this.playerDino.getXY().y
+      if (y < this.viewportSize.y - 1) {
+        if (frame % 3 == 0) {
+          // make wake
+          // this.playerDino.moveTo(new XY(36 - 2, y - 4))
+          // this.playerDino.moveTo(new XY(36 + 2, y - 4))
+          // this.playerDino.moveTo(new XY(36, y - 4))
+          let pauseMaybe = ROT.RNG.getPercentage() < (y > 36 ? 60 : 10)
+          if (!pauseMaybe) this.playerDino.moveTo(new XY(36, y + 1))
+        }
+        let { ch, fg } = this.playerDino.getVisual()
+        this.drawDino(this.playerDino)
+        this.game.display.draw(this.playerDino.getXY().x, this.playerDino.getXY().y, ch, fg, darken(fg));
+      }
+      setTimeout(loop, tickTimeMs)
+    }
+    loop()
+  }
+
+  makeWinMap() {
+    let titleMap = winScreen.split("\n")
+    for (let row = 0; row < this.viewportSize.y; row++) {
+      for (let col = 0; col < this.viewportSize.x; col++) {
+        let pos = new XY(col, row)
+        let ch = titleMap[row] && titleMap[row][col] ? titleMap[row][col] : "x"
+        let t
+        switch (ch) {
+          case "1":
+            t = new Terrain.Jungle(this, pos)
+            this.map.set(t)
+            t.id = addEntity(this.terrainEcsWorld)
+            break;
+          case "2":
+            t = new Terrain.Shrub(this, pos)
+            this.map.set(t)
+            t.id = addEntity(this.terrainEcsWorld)
+            break;
+          case "3":
+            t = new Terrain.Grass(this, pos)
+            this.map.set(t)
+            t.id = addEntity(this.terrainEcsWorld)
+            break;
+
+          default:
+            let ocean = new Terrain.Ocean(this, pos)
+            ocean.id = addEntity(this.terrainEcsWorld)
+            Animated.add(ocean)
+            addComponent(this.terrainEcsWorld, Deplacable, ocean.id)
+            Deplacable.healRate[ocean.id] = 4
+            this.map.set(ocean)
+            break;
+        }
+      }
+    }
+  }
+
+  drawWinMap() {
+    let titleMap = winScreen.split("\n")
+    for (let row = 0; row < this.viewportSize.y; row++) {
+      for (let col = 0; col < this.viewportSize.x; col++) {
+        let bg = this.map.at(col, row)!
+        let ch = bg.getVisual().ch
+        let color = bg.getVisual().fg
+        if (col === 0 && row === 0) {
+        }
+
+        let titleX = row
+        let titleY = col
+        if (titleMap[titleX] && titleMap[titleX][titleY] && !["1", "2", "3", " "].includes(titleMap[titleX][titleY])) {
+          ch = titleMap[titleX][titleY]
+          color = "orange"// "#6a6"
+        }
+        if (hasComponent(this.terrainEcsWorld, Deplaced, bg.id)) {
+          let amount = ROT.RNG.getWeightedValue({ 0.7: 0.01, 0.2: 0.8, 0.4: 0.3 })
+          color = (bg instanceof Terrain.Ocean) ? brighten(color, amount) : darken(color, 0.7)
+        }
+
+        this.game.display.draw(col, row, ch, color);
+      }
     }
   }
 }

@@ -59,6 +59,15 @@ export default class WorldMap {
     this._ids.delete(terrain.id)
   }
 
+  /**
+   * Clears the whole map and all indexes
+   */
+  clear(): void {
+    this._map = Array.from(Array(this.size.x), () => Array(this.size.y).fill(null));
+    this._indexed.clear()
+    this._ids.clear()
+  }
+
   removeFromIndex(terrain: Terrain): void {
     let key = terrain.constructor as ConstructorOf<Terrain>
     this._indexed.get(key)?.delete(terrain)
@@ -69,7 +78,7 @@ export default class WorldMap {
   at(xyOrX: XY | number, y?: number): Terrain | null {
     let xy = (typeof xyOrX === "number" && typeof y === "number") ? new XY(xyOrX, y) : xyOrX as XY
     if (this.isOutOfBounds(xy)) {
-      if (DEBUG) console.warn(`Tried to get terrain at out of bounds position (${xy.x}, ${xy.y})`)
+      // if (DEBUG) console.warn(`Tried to get terrain at out of bounds position (${xy.x}, ${xy.y})`)
       return null
     }
     return this._map[xy.x][xy.y];

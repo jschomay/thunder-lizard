@@ -5,7 +5,7 @@ import { DEBUG } from "../debug";
 import { Color } from "../../lib/rotjs";
 import { Controlled, Deplacable, Deplaced, Hiding, Movement } from "../components";
 import { addComponent, getEntityComponents, hasComponent, removeComponent } from "bitecs";
-import { relativePosition } from "../utils";
+import { relativePosition, waterOrOcean } from "../utils";
 import { Jungle, Water } from "./terrain";
 import { MOVEMENT_DECREASE_IN_WATER } from "../constants";
 
@@ -38,7 +38,7 @@ export default class Dino extends Entity {
       return { ...super.getVisual(), ch: "%", fg: "lightgrey" }
     }
 
-    let visual = { ch: "X", fg: this.id === 0 ? playerColor : colors[this.dominance - 1] }
+    let visual = { ch: "X", fg: this.id === this.getLevel().playerId ? playerColor : colors[this.dominance - 1] }
     visual.ch = visuals[this.dominance - 1]
 
     if (DEBUG > 1) {
@@ -82,12 +82,14 @@ export default class Dino extends Entity {
     }
 
     // changing speed when entering/exiting water
-    if (from_terrain instanceof Water && !(to_terrain instanceof Water)) {
+    if (waterOrOcean(from_terrain) && !(waterOrOcean(to_terrain))) {
+      let decrease = from_terrain instanceof Water ? MOVEMENT_DECREASE_IN_WATER : Math.floor(MOVEMENT_DECREASE_IN_WATER / 2)
       // edge case when leveling up in water would make this "wrap around" to 256 (uint8), so clamp to 0
-      Movement.turnsToSkip[this.id] = Math.max(0, Movement.turnsToSkip[this.id] - MOVEMENT_DECREASE_IN_WATER)
+      Movement.turnsToSkip[this.id] = Math.max(0, Movement.turnsToSkip[this.id] - decrease)
     }
-    if (!(from_terrain instanceof Water) && to_terrain instanceof Water) {
-      Movement.turnsToSkip[this.id] += MOVEMENT_DECREASE_IN_WATER
+    if (!(waterOrOcean(from_terrain)) && waterOrOcean(to_terrain)) {
+      let decrease = to_terrain instanceof Water ? MOVEMENT_DECREASE_IN_WATER : Math.floor(MOVEMENT_DECREASE_IN_WATER / 2)
+      Movement.turnsToSkip[this.id] += decrease
     }
 
     // hiding when moving in/out of jungle

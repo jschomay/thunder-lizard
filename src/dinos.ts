@@ -49,6 +49,13 @@ export default class Dinos {
     this._ids.delete(e.id)
   }
 
+  clear() {
+    this._qt.clear()
+    this._ids.clear()
+    this._index.clear()
+  }
+
+
   /**
    * Returns a list of nearest dinos, sorted by distance
    */
