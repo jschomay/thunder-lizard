@@ -744,8 +744,10 @@ export default class MainLevel {
     const targetXY = [...this.map.getTagged(Terrain.Lava)][0].getXY()
     let passable = (x: number, y: number) => !(this.map.at(x, y) instanceof Terrain.Ocean)
     let pathLen = 0
-    while (pathLen === 0 && selectedCoords.length > 0) {
-      let playerStartOption = selectedCoords.pop()!
+    let playerStartOptions = [...this.map.getTagged(Terrain.Grass)].map(e => e.getXY())
+    while (pathLen === 0 && playerStartOptions.length > 0) {
+      let playerStartOption = playerStartOptions.pop()!
+      if (this.dinos.at(playerStartOption.x, playerStartOption.y)) continue
 
       let astar = new ROT.Path.AStar(targetXY.x, targetXY.y, passable, { topology: 4 });
       astar.compute(playerStartOption.x, playerStartOption.y, () => pathLen += 1);

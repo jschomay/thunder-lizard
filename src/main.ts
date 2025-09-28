@@ -39,7 +39,7 @@ const sounds = [
   {
     src: ['growl3.mp3'],
     loop: false,
-    volume: 0.8,
+    volume: 0.6,
   },
   {
     src: ['growl4.mp3'],

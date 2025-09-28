@@ -47,7 +47,7 @@ export default class Dino extends Entity {
     } else if (hasComponent(this.getLevel().dinoEcsWorld, Hiding, this.id)) {
       let fg = super.getVisual()!.fg
       let terrainFg = this.getLevel().map.at(this.getXY())!.getVisual().fg
-      let darkenAmount = this.id === this.getLevel().playerId ? 0.5 : 0.8
+      let darkenAmount = this.id === this.getLevel().playerId ? 0.4 : 0.5
       let darkened = Color.toHex(Color.interpolate(Color.fromString(fg), Color.fromString(terrainFg), darkenAmount))
       return { ...visual, fg: darkened }
 
