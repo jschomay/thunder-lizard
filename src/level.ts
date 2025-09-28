@@ -260,13 +260,6 @@ export default class MainLevel {
 
 
   onKeyDown(e: KeyboardEvent) {
-    if (["x"].includes(e.key)) {
-      this.playerDino.dominance = 6
-      this.playerWin = 1
-      // this.doWinState()
-    }
-
-
     if (this.showingWinScreen || this.playerDino.dead) {
       if (e.key === " ") window.location.reload()
       return
